@@ -1,0 +1,1 @@
+//reducer and thunks fetch user
