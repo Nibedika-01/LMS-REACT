@@ -1,8 +1,7 @@
-//reducer and thunk
 import { createSlice } from "@reduxjs/toolkit";
 
 export default createSlice({
-    name: 'books',
+    name: 'authors',
     initialState: {data: []},
     reducers: {}
 }).reducer;
