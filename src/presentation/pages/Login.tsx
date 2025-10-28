@@ -27,25 +27,9 @@ export default function Auth() {
   const [fullName, setFullName] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showSignupSuccess, setShowSignupSuccess] = useState(false);
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    if (isLogin) {
-      navigate('/');
-    } else {
-      setShowSignupSuccess(true);
-      const timer = setTimeout(() => {
-        setShowSignupSuccess(false);
-        navigate('/');
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, isLogin, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +39,8 @@ export default function Auth() {
     try {
       const { user, token } = await loginUseCase.execute(username, password);
       login(user, token);
+      navigate('/dashboard');
+      console.log('Login successful!');
     } catch (err) {
       setError('Login failed. Please check your credentials.');
       console.error('Login failed:', err);
@@ -144,7 +130,7 @@ export default function Auth() {
             )}
 
             {/* Success Message */}
-            {showSignupSuccess && (
+            {isAuthenticated && (
               <div className="mb-6 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
                 Successfully signed up!
               </div>
