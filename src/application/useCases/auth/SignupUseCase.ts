@@ -9,6 +9,6 @@ export class SignUpUseCase {
     }
     
     async execute(fullName: string, password: string): Promise<{user: User; token: string}> {
-        return this.authRepository.login(fullName, password);
+        return this.authRepository.signup(fullName, password);
     }
 }
