@@ -1,5 +1,7 @@
-import { useState } from 'react';
+'use client';
+import { useState, useEffect } from 'react';
 import { User, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import library from '../../assets/library.jpg';
 import { LoginUseCase } from '../../application/useCases/auth/LoginUseCase';
@@ -11,6 +13,8 @@ const loginUseCase = new LoginUseCase(authRepository);
 const signupUseCase = new SignUpUseCase(authRepository);
 
 export default function Auth() {
+  const navigate = useNavigate();
+
   const { isAuthenticated, login } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   
@@ -23,9 +27,25 @@ export default function Auth() {
   const [fullName, setFullName] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showSignupSuccess, setShowSignupSuccess] = useState(false);
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    if (isLogin) {
+      navigate('/');
+    } else {
+      setShowSignupSuccess(true);
+      const timer = setTimeout(() => {
+        setShowSignupSuccess(false);
+        navigate('/');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, isLogin, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,9 +144,9 @@ export default function Auth() {
             )}
 
             {/* Success Message */}
-            {isAuthenticated && (
+            {showSignupSuccess && (
               <div className="mb-6 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
-                Successfully {isLogin ? 'logged in' : 'signed up'}!
+                Successfully signed up!
               </div>
             )}
 

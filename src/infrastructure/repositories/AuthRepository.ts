@@ -6,19 +6,13 @@ import apiClient from "../api/apiClient";
 
 export class AuthRepository implements IAuthRepository {
     async login(username: string, password: string): Promise<{ user: User; token: string }> {
-        const response = await apiClient.get('/Users');
-        const users: User[] = response.data;
-
-        const user = users.find(
-            (u: any) =>
-            (u.username?.toLowerCase() === username.toLowerCase() ||
-            u.fullName?.toLowerCase() === username.toLowerCase()) &&
-            u.password === password
-        );
-        if (!user) {
-            throw new Error('Invalid username or password');
-        }
-        return { user, token: "dummy-jwt-token"}
+        const payload = {
+            username: username,
+            password: password
+        };
+        const response = await apiClient.post('/Users/login', payload)
+        const user: User = response.data;
+        return { user, token: "dummy-jwt-token" }
     }
 
     async signup(fullName: string, password: string): Promise<{ user: User; token: string }> {
@@ -29,8 +23,9 @@ export class AuthRepository implements IAuthRepository {
             createdAt: new Date().toISOString()
         };
         const response = await apiClient.post('/Users', newUser);
-        const createdUser= response.data;
-        return { user: createdUser, token: "dummy-jwt-token"
+        const createdUser = response.data;
+        return {
+            user: createdUser, token: "dummy-jwt-token"
         }
     }
 
