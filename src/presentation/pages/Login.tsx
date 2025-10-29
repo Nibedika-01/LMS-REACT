@@ -1,5 +1,4 @@
-'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { User, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -15,15 +14,14 @@ const signupUseCase = new SignUpUseCase(authRepository);
 export default function Auth() {
   const navigate = useNavigate();
 
-  const { isAuthenticated, login } = useAuth();
+  const { login } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   
-  // Login states
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   
-  // Sign up states
   const [fullName, setFullName] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -39,7 +37,7 @@ export default function Auth() {
     try {
       const { user, token } = await loginUseCase.execute(username, password);
       login(user, token);
-      navigate('/dashboard');
+      navigate('/home');
       console.log('Login successful!');
     } catch (err) {
       setError('Login failed. Please check your credentials.');
@@ -52,7 +50,6 @@ export default function Auth() {
   const handleSignUp = async () => {
     setError('');
 
-    // Validation
     if (!fullName || !signupPassword || !confirmPassword) {
       setError('All fields are required.');
       return;
@@ -73,7 +70,11 @@ export default function Auth() {
     try {
       const { user, token } = await signupUseCase.execute(fullName, signupPassword);
       login(user, token);
-      console.log('Sign up successful!');
+      setShowSuccessMessage(true);
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 3000);
+      return () => clearTimeout(timer);
     } catch (err) {
       setError('Sign up failed. Please try again.');
       console.error('Sign up failed:', err);
@@ -85,7 +86,6 @@ export default function Auth() {
   const toggleMode = () => {
     setIsLogin(!isLogin);
     setError('');
-    // Clear all fields when switching
     setUsername('');
     setPassword('');
     setFullName('');
@@ -96,7 +96,6 @@ export default function Auth() {
 
   const handleForgotPassword = () => {
     console.log('Navigate to forgot password');
-    // Add your forgot password logic here
   };
 
   return (
@@ -130,7 +129,7 @@ export default function Auth() {
             )}
 
             {/* Success Message */}
-            {isAuthenticated && (
+            {showSuccessMessage && (
               <div className="mb-6 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
                 Successfully signed up!
               </div>
