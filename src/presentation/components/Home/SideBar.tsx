@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../../infrastructure/api/apiClient';
+import BooksManagement from './Book';
+import StudentManagement from './Student';
 import { BookOpen, Users, AlertCircle, TrendingUp, UserPlus, BookPlus, ArrowLeft, Home, RefreshCw, BarChart3, LogOut } from 'lucide-react';
 
 interface DashboardStats {
@@ -51,12 +53,12 @@ const LibraryManagementSystem: React.FC = () => {
     const fetchDashboardData = async () => {
         setLoading(true);
         try {
-            const res = await apiClient.get('/Books/total');
-            const totalBooks = res.data.total;
-            console.log("res.data:", res.data);
+            const bookRes = await apiClient.get('/Books/total');
+            const issuesRes = await apiClient.get('/Issues/total');
             setStats(prev => ({
                 ...prev,
-                totalBooks
+                totalBooks : bookRes.data.total,
+                booksIssued: issuesRes.data.total
             }));
 
             //baki issue ko number ya add garni hai fuchi
@@ -284,7 +286,12 @@ const LibraryManagementSystem: React.FC = () => {
             );
         }
 
-        // Placeholder for other sections
+        if (activeMenu === 'Books') {
+            return <BooksManagement />;
+        }else if( activeMenu === 'Student'){
+            return <StudentManagement/>
+        }
+
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
