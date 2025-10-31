@@ -1,46 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../infrastructure/api/apiClient';
-import { Search, Eye, Edit, Trash2, BookPlus, ArrowLeft, RotateCcw, UserPlus, X } from 'lucide-react';
+import { Search, Edit, Trash2, BookPlus, ArrowLeft, RotateCcw, UserPlus, X } from 'lucide-react';
 
 interface Book {
     id: string;
     title: string;
-    author: string;
-    category: string;
-    status: 'Available' | 'Not Available';
+    authorId: number;
+    genre: string;
+    isAvailable: string;
     issued: number;
 }
 
 const BooksManagement: React.FC = () => {
     const [view, setView] = useState<'list' | 'add'>('list');
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All Status');
     const [authors, setAuthors] = useState([]);
-    const [categoryFilter, setCategoryFilter] = useState('All Categories');
-    // const [currentPage, setCurrentPage] = useState(1);
+    const [books, setBooks] = useState<Book[]>([]);
     const [showAuthorModal, setShowAuthorModal] = useState(false);
     const [authorName, setAuthorName] = useState('');
 
     const [formData, setFormData] = useState({
         title: '',
         author: '',
-        category: '',
+        genre: '',
         publisher: '',
         publicationYear: '',
         price: '',
         description: ''
     });
-
-    const [books] = useState<Book[]>([
-        { id: '1', title: 'The Great Gatsby', author: 'F. Scott Fitzgerald', category: 'Fiction', status: 'Available', issued: 2 },
-        { id: '2', title: 'To Kill a Mockingbird', author: 'Harper Lee', category: 'Fiction', status: 'Available', issued: 1 },
-        { id: '3', title: 'Introduction to Algorithms', author: 'Thomas H Cormen', category: 'Computer Science', status: 'Not Available', issued: 12 },
-        { id: '4', title: 'Clean Code', author: 'Robert C Martin', category: 'Computer Science', status: 'Available', issued: 5 },
-        { id: '5', title: 'The Hobbit', author: 'J.R.R Tolkien', category: 'Fantasy', status: 'Available', issued: 1 },
-        { id: '6', title: 'The Da Vinci Code', author: 'Dan Brown', category: 'Mystery', status: 'Available', issued: 3 },
-        { id: '7', title: 'The Alchemist', author: 'Paulo Coelho', category: 'Fiction', status: 'Not Available', issued: 4 }
-    ]);
-
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData({
             ...formData,
@@ -49,10 +36,59 @@ const BooksManagement: React.FC = () => {
     };
 
     useEffect(() => {
+        const fetchBooks = async () => {
+            try {
+                const response = await apiClient.get('/Books');
+                console.log('Books fetched:', response.data);
+                const data = response.data.map((b: any) => ({
+                    id: b.id.toString(),
+                    title: b.title,
+                    authorId: b.authorId,
+                    genre: b.genre,
+                    isAvailable: b.isAvailable,
+                }));
+                setBooks(data);
+            } catch (error) {
+                console.error('Error fetching books:', error);
+            }
+        };
+        fetchBooks();
+    }, []);
+
+    const handleDeleteBook = async (bookId: string) => {
+        console.log('Deleting book with ID:', bookId);
+        try {
+            await apiClient.delete(`/Books/${bookId}`);
+            alert('Book deleted successfully');
+            setBooks(books.filter(book => book.id !== bookId));
+        } catch (error) {
+            alert('Failed to delete book. Please try again.');
+        }
+    }
+
+    // const handleUpdateBook = async (bookId: string) => {
+    //     console.log('Updating book with ID:', bookId);
+    //     setFormData({
+    //         title: '',
+    //         author: '',
+    //         genre: '',
+    //         publisher: '',
+    //         publicationYear: '',
+    //         price: '',
+    //         description: ''
+    //     })
+    //     try {
+    //         await apiClient.put(`/Books/${bookId}`, formData);
+
+    //     } catch (error) {
+    //         console.error('Error updating book:', error);
+    //         alert('Failed to update book. Please try again.');
+    //     }
+    // }
+    useEffect(() => {
         const fetchAuthors = async () => {
             try {
                 const response = await apiClient.get('/Authors');
-                console.log('Authors fetched:', response.data);
                 setAuthors(response.data);
             } catch (error) {
                 console.error('Error fetching authors:', error);
@@ -70,7 +106,7 @@ const BooksManagement: React.FC = () => {
             setFormData({
                 title: '',
                 author: '',
-                category: '',
+                genre: '',
                 publisher: '',
                 publicationYear: '',
                 price: '',
@@ -87,7 +123,7 @@ const BooksManagement: React.FC = () => {
         setFormData({
             title: '',
             author: '',
-            category: '',
+            genre: '',
             publisher: '',
             publicationYear: '',
             price: '',
@@ -97,13 +133,14 @@ const BooksManagement: React.FC = () => {
 
     const handleAddAuthor = async () => {
         console.log("Adding author:", authorName);
-        // TODO: Connect to backend API to add author
-        // const response = await fetch('/api/authors', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({ name: authorName })
-        // });
-
+        try {
+            const response = await apiClient.post('/Authors', { authorName });
+            console.log('Author added successfully:', response.data);
+        } catch (error) {
+            console.error('Error adding author:', error);
+            alert('Failed to add author. Please try again.');
+            return;
+        }
         alert(`Author "${authorName}" added successfully!`);
         setAuthorName('');
         setShowAuthorModal(false);
@@ -172,25 +209,7 @@ const BooksManagement: React.FC = () => {
                                         </option>
                                     ))}
                                 </select>
-
                             </div>
-
-
-                            {/* ISBN */}
-                            {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ISBN <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="isbn"
-                  value={formData.isbn}
-                  onChange={handleInputChange}
-                  placeholder="for e.g. 978-0-06-112008-4"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div> */}
-
                             {/* Category/Genre */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -198,15 +217,13 @@ const BooksManagement: React.FC = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    name="category"
-                                    value={formData.category || ""}
+                                    name="genre"
+                                    value={formData.genre || ""}
                                     onChange={handleInputChange}
                                     placeholder="Genre"
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
                             </div>
-
-
                             {/* Publisher */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -237,72 +254,6 @@ const BooksManagement: React.FC = () => {
                                 />
                             </div>
 
-                            {/* Language */}
-                            {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Language
-                </label>
-                <select
-                  name="language"
-                  value={formData.language}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                >
-                  <option value="">Select language</option>
-                  <option value="English">English</option>
-                  <option value="Nepali">Nepali</option>
-                  <option value="Hindi">Hindi</option>
-                </select>
-              </div> */}
-
-                            {/* Number of Copies */}
-                            {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Number of copies <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  name="copies"
-                  value={formData.copies}
-                  onChange={handleInputChange}
-                  placeholder="Enter the number"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div> */}
-
-                            {/* Shelf Location */}
-                            {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Shelf location
-                </label>
-                <input
-                  type="text"
-                  name="shelfLocation"
-                  value={formData.shelfLocation}
-                  onChange={handleInputChange}
-                  placeholder="for e.g. A-1-001"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div> */}
-
-                            {/* Condition */}
-                            {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Condition
-                </label>
-                <select
-                  name="condition"
-                  value={formData.condition}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                >
-                  <option value="New">New</option>
-                  <option value="Good">Good</option>
-                  <option value="Fair">Fair</option>
-                  <option value="Poor">Poor</option>
-                </select>
-              </div> */}
-
                             {/* Price */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -318,20 +269,6 @@ const BooksManagement: React.FC = () => {
                                 />
                             </div>
 
-                            {/* Barcode */}
-                            {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Barcode <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="barcode"
-                  value={formData.barcode}
-                  onChange={handleInputChange}
-                  placeholder="Enter the book's barcode"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div> */}
 
                             {/* Description */}
                             <div className="col-span-2">
@@ -413,7 +350,7 @@ const BooksManagement: React.FC = () => {
                                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                         </div>
-                        <select
+                        {/* <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
                             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
@@ -432,7 +369,7 @@ const BooksManagement: React.FC = () => {
                             <option>Computer Science</option>
                             <option>Fantasy</option>
                             <option>Mystery</option>
-                        </select>
+                        </select> */}
                     </div>
                 </div>
 
@@ -440,7 +377,6 @@ const BooksManagement: React.FC = () => {
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                     <div className="bg-blue-600 text-white px-6 py-4">
                         <h2 className="text-lg font-semibold">Book List/Collection</h2>
-                        <p className="text-sm text-blue-100">Showing 8 of 40 books</p>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -449,42 +385,36 @@ const BooksManagement: React.FC = () => {
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Title</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Author</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">ISBN</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Category</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Genre</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Copies</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Issued</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
                                 {books.map((book) => (
                                     <tr key={book.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 text-sm text-gray-900">{book.title}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-900">{book.author}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-900">{book.authorId}</td>
                                         <td className="px-6 py-4">
                                             <span className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded border border-gray-300">
-                                                {book.category}
+                                                {book.genre}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-3 py-1 text-xs rounded ${book.status === 'Available'
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-red-100 text-red-700'
-                                                }`}>
-                                                {book.status}
+                                            <span
+                                                className={`px-3 py-1 text-xs rounded ${book.isAvailable
+                                                    ? "bg-green-100 text-green-700"
+                                                    : "bg-red-100 text-red-700"
+                                                    }`}
+                                            >
+                                                {book.isAvailable ? "Available" : "Not Available"}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900 text-center">{book.issued}</td>
                                         <td className="px-6 py-4">
                                             <div className="flex gap-2">
                                                 <button className="p-2 hover:bg-gray-100 rounded">
-                                                    <Eye className="w-5 h-5 text-gray-600" />
-                                                </button>
-                                                <button className="p-2 hover:bg-gray-100 rounded">
                                                     <Edit className="w-5 h-5 text-gray-600" />
                                                 </button>
-                                                <button className="p-2 hover:bg-gray-100 rounded">
+                                                <button className="p-2 hover:bg-gray-100 rounded" onClick={() => handleDeleteBook(book.id)}>
                                                     <Trash2 className="w-5 h-5 text-gray-600" />
                                                 </button>
                                             </div>
@@ -493,21 +423,6 @@ const BooksManagement: React.FC = () => {
                                 ))}
                             </tbody>
                         </table>
-                    </div>
-
-                    {/* Pagination */}
-                    <div className="px-6 py-4 border-t border-gray-200 flex justify-center gap-2">
-                        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            &lt;
-                        </button>
-                        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg">1</button>
-                        <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">2</button>
-                        <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">3</button>
-                        <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">4</button>
-                        <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">5</button>
-                        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            &gt;
-                        </button>
                     </div>
                 </div>
             </div>

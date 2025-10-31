@@ -57,10 +57,12 @@ const LibraryManagementSystem: React.FC = () => {
         try {
             const bookRes = await apiClient.get('/Books/total');
             const issuesRes = await apiClient.get('/Issues/total');
+            const studentRes = await apiClient.get('/Students/total');
             setStats(prev => ({
                 ...prev,
                 totalBooks : bookRes.data.total,
-                booksIssued: issuesRes.data.total
+                booksIssued: issuesRes.data.total,
+                activeMembers: studentRes.data.total
             }));
 
             //baki issue ko number ya add garni hai fuchi
