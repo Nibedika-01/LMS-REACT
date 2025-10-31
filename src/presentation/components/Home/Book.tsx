@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../infrastructure/api/apiClient';
-import { Search, Eye, Edit, Trash2, BookPlus, ArrowLeft, RotateCcw } from 'lucide-react';
+import { Search, Eye, Edit, Trash2, BookPlus, ArrowLeft, RotateCcw, UserPlus, X } from 'lucide-react';
 
 interface Book {
     id: string;
@@ -17,7 +17,9 @@ const BooksManagement: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState('All Status');
     const [authors, setAuthors] = useState([]);
     const [categoryFilter, setCategoryFilter] = useState('All Categories');
-    const [currentPage, setCurrentPage] = useState(1);
+    // const [currentPage, setCurrentPage] = useState(1);
+    const [showAuthorModal, setShowAuthorModal] = useState(false);
+    const [authorName, setAuthorName] = useState('');
 
     const [formData, setFormData] = useState({
         title: '',
@@ -92,6 +94,20 @@ const BooksManagement: React.FC = () => {
             description: ''
         });
     };
+
+    const handleAddAuthor = async () => {
+        console.log("Adding author:", authorName);
+        // TODO: Connect to backend API to add author
+        // const response = await fetch('/api/authors', {
+        //   method: 'POST',
+        //   headers: { 'Content-Type': 'application/json' },
+        //   body: JSON.stringify({ name: authorName })
+        // });
+
+        alert(`Author "${authorName}" added successfully!`);
+        setAuthorName('');
+        setShowAuthorModal(false);
+    }
 
     if (view === 'add') {
         return (
@@ -364,13 +380,22 @@ const BooksManagement: React.FC = () => {
                     <h1 className="text-3xl font-bold text-gray-900">Books Management</h1>
                     <p className="text-gray-500 mt-1">Manage your library's book collection</p>
                 </div>
-                <button
-                    onClick={() => setView('add')}
-                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                    <BookPlus className="w-5 h-5" />
-                    Add Book
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setShowAuthorModal(true)}
+                        className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                        <UserPlus className="w-5 h-5" />
+                        Add Author
+                    </button>
+                    <button
+                        onClick={() => setView('add')}
+                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        <BookPlus className="w-5 h-5" />
+                        Add Book
+                    </button>
+                </div>
             </div>
 
             {/* Search and Filter */}
@@ -486,6 +511,63 @@ const BooksManagement: React.FC = () => {
                     </div>
                 </div>
             </div>
+            {/* Add Author Modal */}
+            {showAuthorModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <UserPlus className="w-6 h-6 text-green-600" />
+                                <h3 className="text-xl font-bold text-gray-900">Add New Author</h3>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setShowAuthorModal(false);
+                                    setAuthorName('');
+                                }}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6">
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Author Name <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={authorName}
+                                    onChange={(e) => setAuthorName(e.target.value)}
+                                    placeholder="Enter author name"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleAddAuthor}
+                                    disabled={!authorName.trim()}
+                                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                >
+                                    Add Author
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowAuthorModal(false);
+                                        setAuthorName('');
+                                    }}
+                                    className="flex-1 px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

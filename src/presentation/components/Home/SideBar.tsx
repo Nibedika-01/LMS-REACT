@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import apiClient from '../../../infrastructure/api/apiClient';
 import BooksManagement from './Book';
 import StudentManagement from './Student';
+import ReportsAnalytics from './Report';
 import { BookOpen, Users, AlertCircle, TrendingUp, UserPlus, BookPlus, ArrowLeft, Home, RefreshCw, BarChart3, LogOut } from 'lucide-react';
+import TransactionManagement from './Transaction';
 
 interface DashboardStats {
     totalBooks: number;
@@ -290,6 +292,10 @@ const LibraryManagementSystem: React.FC = () => {
             return <BooksManagement />;
         }else if( activeMenu === 'Student'){
             return <StudentManagement/>
+        } else if (activeMenu === 'Transactions') {
+          return  < TransactionManagement/>
+        } else if (activeMenu === 'Reports') {
+            return <ReportsAnalytics />;
         }
 
         return (
