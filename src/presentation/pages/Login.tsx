@@ -38,7 +38,6 @@ export default function Auth() {
       const { user, token } = await loginUseCase.execute(username, password);
       login(user, token);
       navigate('/home');
-      console.log('Login successful!');
     } catch (err) {
       setError('Login failed. Please check your credentials.');
       console.error('Login failed:', err);

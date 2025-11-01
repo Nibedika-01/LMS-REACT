@@ -68,7 +68,6 @@ const BooksManagement: React.FC = () => {
         const fetchBooks = async () => {
             try {
                 const response = await apiClient.get('/Books');
-                console.log('Books fetched:', response.data);
                 const data = response.data.map((b: any) => ({
                     id: b.id.toString(),
                     title: b.title,
@@ -88,7 +87,6 @@ const BooksManagement: React.FC = () => {
     }, []);
 
     const handleDeleteBook = async (bookId: string) => {
-        console.log('Deleting book with ID:', bookId);
         try {
             await apiClient.delete(`/Books/${bookId}`);
             alert('Book deleted successfully');
@@ -163,10 +161,8 @@ const BooksManagement: React.FC = () => {
     }, [])
 
     const handleAddBook = async () => {
-        console.log('Adding book:', formData);
         try {
             const response = await apiClient.post('/Books', formData);
-            console.log('Book added successfully:', response.data);
             alert('Book added successfully!');
             setFormData({
                 title: '',
@@ -197,10 +193,8 @@ const BooksManagement: React.FC = () => {
     };
 
     const handleAddAuthor = async () => {
-        console.log("Adding author:", authorName);
         try {
             const response = await apiClient.post('/Authors', { authorName });
-            console.log('Author added successfully:', response.data);
         } catch (error) {
             console.error('Error adding author:', error);
             alert('Failed to add author. Please try again.');
@@ -215,7 +209,6 @@ const BooksManagement: React.FC = () => {
         try {
             const response = await apiClient.get('/Authors');
             const data = await response.data;
-            console.log('Authors fetched:', data);
             setAuthorsList(data);
             setShowViewAuthorModal(true);
         } catch (error) {
@@ -458,7 +451,8 @@ const BooksManagement: React.FC = () => {
                                                     <div className="text-xs text-gray-500">ID: {book.id}</div>
                                                 </div>
                                             </div>
-                                        </td>                                        <td className="px-6 py-4 text-sm text-gray-900">{book.authorId}</td>
+                                        </td>                                        
+                                        <td className="px-6 py-4 text-sm text-gray-900">{book.authorId}</td>
                                         <td className="px-6 py-4">
                                             <span className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded border border-gray-300">
                                                 {book.genre}

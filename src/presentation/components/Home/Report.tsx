@@ -1,67 +1,220 @@
+import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Users, AlertCircle } from 'lucide-react';
+import apiClient from '../../../infrastructure/api/apiClient';
+
+interface Issue {
+  id: number;
+  bookId: number;
+  bookTitle: string;
+  studentId: number;
+  studentName: string;
+  issueDate: string;
+  returnDate: string | null;
+}
+
+interface Book {
+  id: number;
+  title: string;
+  authorId: number;
+  genre: string;
+  isAvailable: boolean;
+}
+
+interface Student {
+  id: number;
+  name: string;
+}
+
+interface OverdueBook {
+  id: number;
+  title: string;
+  member: string;
+  daysOverdue: number;
+  fine: number;
+}
+
+interface PopularBook {
+  rank: number;
+  title: string;
+  author: string;
+  issues: number;
+}
+
+interface CategoryData {
+  name: string;
+  value: number;
+  color: string;
+}
 
 const ReportsAnalytics: React.FC = () => {
-  // Monthly Checkout Trends Data
-  const checkoutData = [
-    { month: 'Jan', checkouts: 145, returns: 132 },
-    { month: 'Feb', checkouts: 162, returns: 148 },
-    { month: 'Mar', checkouts: 178, returns: 165 },
-    { month: 'Apr', checkouts: 195, returns: 182 },
-    { month: 'May', checkouts: 168, returns: 175 },
-    { month: 'Jun', checkouts: 152, returns: 163 }
-  ];
+  const [loading, setLoading] = useState(true);
+  const [overdueBooks, setOverdueBooks] = useState<OverdueBook[]>([]);
+  const [popularBooks, setPopularBooks] = useState<PopularBook[]>([]);
+  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
+  const [checkoutData, setCheckoutData] = useState<any[]>([]);
+  const [membershipData, setMembershipData] = useState<any[]>([]);
+  const [totalBooks, setTotalBooks] = useState(0);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [totalIssues, setTotalIssues] = useState(0);
 
-  // Book Category Distribution Data
-  const categoryData = [
-    { name: 'Fiction', value: 35, color: '#9333ea' },
-    { name: 'Technology', value: 20, color: '#4ade80' },
-    { name: 'Educational', value: 15, color: '#facc15' },
-    { name: 'Mystery', value: 12, color: '#fb923c' },
-    { name: 'History', value: 10, color: '#06b6d4' },
-    { name: 'Other', value: 8, color: '#22d3ee' }
-  ];
+  useEffect(() => {
+    fetchAllData();
+  }, []);
 
-  // Membership Growth Trends Data
-  const membershipData = [
-    { month: 'Jan', students: 120 },
-    { month: 'Feb', students: 135 },
-    { month: 'Mar', students: 142 },
-    { month: 'Apr', students: 158 },
-    { month: 'May', students: 165 },
-    { month: 'Jun', students: 172 },
-    { month: 'Jul', students: 178 },
-    { month: 'Aug', students: 162 },
-    { month: 'Sep', students: 148 },
-    { month: 'Oct', students: 132 }
-  ];
+  const fetchAllData = async () => {
+    setLoading(true);
+    try {
+      const [issuesRes, booksRes, studentsRes] = await Promise.all([
+        apiClient.get<Issue[]>('/Issues'),
+        apiClient.get<Book[]>('/Books'),
+        apiClient.get<Student[]>('/Students')
+      ]);
 
-  // Overdue Books Data
-  const overdueBooks = [
-    { id: 1, title: 'Introduction to Algorithms', member: 'Milan Magar', daysOverdue: 6, fine: 60 },
-    { id: 2, title: 'The Alchemist', member: 'Rohan Bhandari', daysOverdue: 3, fine: 30 },
-    { id: 3, title: 'Clean Code', member: 'Anish Giri', daysOverdue: 2, fine: 20 }
-  ];
+      const issues = issuesRes.data;
+      const books = booksRes.data;
+      const students = studentsRes.data;
 
-  // Popular Books Data
-  const popularBooks = [
-    { rank: 1, title: 'The Alchemist', author: 'Paulo Coelho', issues: 45 },
-    { rank: 2, title: 'Introduction to Algorithms', author: 'Thomas H. Cormen', issues: 38 },
-    { rank: 3, title: 'Harry Potter Series', author: 'J.K. Rowling', issues: 35 },
-    { rank: 4, title: 'The Da Vinci Code', author: 'Dan Brown', issues: 32 },
-    { rank: 5, title: 'Clean Code', author: 'Robert C Martin', issues: 28 }
-  ];
+      setTotalBooks(books.length);
+      setTotalStudents(students.length);
+      setTotalIssues(issues.filter(i => !i.returnDate).length);
 
-  // Member Activity Data
-  const memberActivity = [
-    { member: 'Anish Giri', booksIssued: 12, lastActive: '2 hours ago' },
-    { member: 'Pooja Sharma', booksIssued: 8, lastActive: '1 day ago' },
-    { member: 'Samiksha Shakya', booksIssued: 15, lastActive: '3 hours ago' },
-    { member: 'Tanvir Alam', booksIssued: 6, lastActive: '5 days ago' },
-    { member: 'Milan Magar', booksIssued: 10, lastActive: '1 week ago' }
-  ];
+      calculateOverdueBooks(issues);
+      calculatePopularBooks(issues, books);
+      calculateCategoryDistribution(books);
+      generateCheckoutTrends(issues);
+      generateMembershipTrends(students);
 
-  // Custom Tooltip for Bar Chart
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateOverdueBooks = (issues: Issue[]) => {
+    const now = new Date();
+    const overdue: OverdueBook[] = [];
+
+    issues.forEach(issue => {
+      if (!issue.returnDate) {
+        const issueDate = new Date(issue.issueDate);
+        const dueDate = new Date(issueDate);
+        dueDate.setDate(dueDate.getDate() + 30); 
+
+        if (now > dueDate) {
+          const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+          const fine = daysOverdue * 10; 
+          overdue.push({
+            id: issue.id,
+            title: issue.bookTitle || 'Unknown Book',
+            member: issue.studentName || 'Unknown Student',
+            daysOverdue,
+            fine
+          });
+        }
+      }
+    });
+
+    overdue.sort((a, b) => b.daysOverdue - a.daysOverdue);
+    setOverdueBooks(overdue.slice(0, 5)); 
+  };
+
+  const calculatePopularBooks = (issues: Issue[], books: Book[]) => {
+    const bookIssueCount: { [key: number]: number } = {};
+    
+    issues.forEach(issue => {
+      bookIssueCount[issue.bookId] = (bookIssueCount[issue.bookId] || 0) + 1;
+    });
+
+    const popular: PopularBook[] = Object.entries(bookIssueCount)
+      .map(([bookId, count]) => {
+        const book = books.find(b => b.id === parseInt(bookId));
+        return {
+          bookId: parseInt(bookId),
+          title: book?.title || 'Unknown',
+          authorId: book?.authorId || 0,
+          issues: count
+        };
+      })
+      .sort((a, b) => b.issues - a.issues)
+      .slice(0, 5)
+      .map((book, index) => ({
+        rank: index + 1,
+        title: book.title,
+        author: `Author ID: ${book.authorId}`, 
+        issues: book.issues
+      }));
+
+    setPopularBooks(popular);
+  };
+
+  const calculateCategoryDistribution = (books: Book[]) => {
+    const genreCount: { [key: string]: number } = {};
+    
+    books.forEach(book => {
+      const genre = book.genre || 'Other';
+      genreCount[genre] = (genreCount[genre] || 0) + 1;
+    });
+
+    const total = books.length;
+    const colors = ['#9333ea', '#4ade80', '#facc15', '#fb923c', '#06b6d4', '#22d3ee', '#f43f5e', '#8b5cf6'];
+    
+    const distribution: CategoryData[] = Object.entries(genreCount)
+      .map(([name, count], index) => ({
+        name,
+        value: Math.round((count / total) * 100),
+        color: colors[index % colors.length]
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6); // Top 6 categories
+
+    setCategoryData(distribution);
+  };
+
+  const generateCheckoutTrends = (issues: Issue[]) => {
+    const monthlyData: { [key: string]: { checkouts: number; returns: number } } = {};
+    
+    issues.forEach(issue => {
+      const issueMonth = new Date(issue.issueDate).toLocaleDateString('en-US', { month: 'short' });
+      
+      if (!monthlyData[issueMonth]) {
+        monthlyData[issueMonth] = { checkouts: 0, returns: 0 };
+      }
+      
+      monthlyData[issueMonth].checkouts++;
+      
+      if (issue.returnDate) {
+        const returnMonth = new Date(issue.returnDate).toLocaleDateString('en-US', { month: 'short' });
+        if (!monthlyData[returnMonth]) {
+          monthlyData[returnMonth] = { checkouts: 0, returns: 0 };
+        }
+        monthlyData[returnMonth].returns++;
+      }
+    });
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const chartData = months.map(month => ({
+      month,
+      checkouts: monthlyData[month]?.checkouts || 0,
+      returns: monthlyData[month]?.returns || 0
+    }));
+
+    setCheckoutData(chartData);
+  };
+
+  const generateMembershipTrends = (students: Student[]) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentMonth = new Date().getMonth();
+    
+    const data = months.slice(0, currentMonth + 1).map((month, index) => ({
+      month,
+      students: Math.floor(students.length * ((index + 1) / (currentMonth + 1)))
+    }));
+
+    setMembershipData(data);
+  };
+
   const CustomBarTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -75,7 +228,6 @@ const ReportsAnalytics: React.FC = () => {
     return null;
   };
 
-  // Custom Tooltip for Pie Chart
   const CustomPieTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -88,7 +240,6 @@ const ReportsAnalytics: React.FC = () => {
     return null;
   };
 
-  // Custom Tooltip for Line Chart
   const CustomLineTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -101,6 +252,17 @@ const ReportsAnalytics: React.FC = () => {
     return null;
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -109,8 +271,44 @@ const ReportsAnalytics: React.FC = () => {
         <p className="text-gray-500 mt-1">Library performance insights and statistics</p>
       </div>
 
-      {/* Content */}
+      {/* Stats Overview */}
       <div className="p-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Total Books</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{totalBooks}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Total Students</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{totalStudents}</p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <Users className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Active Loans</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{totalIssues}</p>
+              </div>
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Top Row - Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Monthly Checkout Trends */}
@@ -134,32 +332,38 @@ const ReportsAnalytics: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">Book Category Distribution</h2>
             <p className="text-sm text-gray-500 mb-6">Popular categories in the collection</p>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name} ${value}%`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomPieTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+            {categoryData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }) => `${name} ${value}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomPieTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-gray-500">
+                No category data available
+              </div>
+            )}
           </div>
         </div>
 
         {/* Membership Growth Trends - Full Width */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Membership Growth Trends</h2>
-          <p className="text-sm text-gray-500 mb-6">Member registration by type over time</p>
+          <p className="text-sm text-gray-500 mb-6">Student registration over time</p>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={membershipData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -181,7 +385,7 @@ const ReportsAnalytics: React.FC = () => {
         </div>
 
         {/* Bottom Row - Tables */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Overdue Books Report */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="bg-red-50 px-6 py-4 border-b border-red-100">
@@ -191,26 +395,34 @@ const ReportsAnalytics: React.FC = () => {
               </div>
             </div>
             <div className="p-4">
-              <div className="space-y-3">
-                {overdueBooks.map((book) => (
-                  <div key={book.id} className="p-3 bg-red-50 rounded-lg border border-red-100 hover:shadow-md transition-shadow">
-                    <div className="font-medium text-sm text-gray-900">{book.title}</div>
-                    <div className="text-xs text-gray-600 mt-1">{book.member}</div>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-xs text-red-600 font-medium">{book.daysOverdue} days overdue</span>
-                      <span className="text-xs text-gray-900 font-semibold">Rs. {book.fine}</span>
+              {overdueBooks.length > 0 ? (
+                <>
+                  <div className="space-y-3">
+                    {overdueBooks.map((book) => (
+                      <div key={book.id} className="p-3 bg-red-50 rounded-lg border border-red-100 hover:shadow-md transition-shadow">
+                        <div className="font-medium text-sm text-gray-900">{book.title}</div>
+                        <div className="text-xs text-gray-600 mt-1">{book.member}</div>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-xs text-red-600 font-medium">{book.daysOverdue} days overdue</span>
+                          <span className="text-xs text-gray-900 font-semibold">Rs. {book.fine}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold text-gray-900">Total Fine:</span>
+                      <span className="text-lg font-bold text-red-600">
+                        Rs. {overdueBooks.reduce((sum, book) => sum + book.fine, 0)}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold text-gray-900">Total Fine:</span>
-                  <span className="text-lg font-bold text-red-600">
-                    Rs. {overdueBooks.reduce((sum, book) => sum + book.fine, 0)}
-                  </span>
+                </>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No overdue books!
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -223,54 +435,28 @@ const ReportsAnalytics: React.FC = () => {
               </div>
             </div>
             <div className="p-4">
-              <div className="space-y-3">
-                {popularBooks.map((book) => (
-                  <div key={book.rank} className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
-                        {book.rank}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm text-gray-900 truncate">{book.title}</div>
-                        <div className="text-xs text-gray-600 mt-1">{book.author}</div>
-                        <div className="text-xs text-blue-600 font-medium mt-1">{book.issues} issues</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Member Activity */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-green-50 px-6 py-4 border-b border-green-100">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-green-600" />
-                <h3 className="font-semibold text-gray-900">Member Activity</h3>
-              </div>
-            </div>
-            <div className="p-4">
-              <div className="space-y-3">
-                {memberActivity.map((member, index) => (
-                  <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <Users className="w-5 h-5 text-green-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-sm text-gray-900">{member.member}</div>
-                        <div className="text-xs text-gray-600 mt-1">
-                          {member.booksIssued} books issued
+              {popularBooks.length > 0 ? (
+                <div className="space-y-3">
+                  {popularBooks.map((book) => (
+                    <div key={book.rank} className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                          {book.rank}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Last active: {member.lastActive}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-gray-900 truncate">{book.title}</div>
+                          <div className="text-xs text-gray-600 mt-1">{book.author}</div>
+                          <div className="text-xs text-blue-600 font-medium mt-1">{book.issues} issues</div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No book issues yet
+                </div>
+              )}
             </div>
           </div>
         </div>

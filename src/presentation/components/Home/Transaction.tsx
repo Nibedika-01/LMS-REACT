@@ -38,14 +38,10 @@ const TransactionManagement: React.FC = () => {
         setLoading(true);
         try {
             const issuesRes = await apiClient.get<Issue[]>('/Issues');
-            console.log('Fetched issues:', issuesRes.data);
             const [studentsRes, booksRes] = await Promise.all([
                 apiClient.get<any[]>('/Students'),
                 apiClient.get<any[]>('/Books'),
             ]);
-            console.log('Fetched students:', studentsRes.data);
-            console.log('Fetched books:', booksRes.data);
-
             const studentMap = Object.fromEntries(studentsRes.data.map(s => [s.id, s.name]));
             const bookMap = Object.fromEntries(booksRes.data.map(b => [b.id, b.title]));
 
@@ -114,8 +110,6 @@ const TransactionManagement: React.FC = () => {
             studentId: parseInt(formData.studentId),
             issueDate: new Date().toISOString(),
         }
-
-        console.log('Issuing book with payload:', payload);
 
         try {
             const response = await apiClient.post('/Issues', payload);

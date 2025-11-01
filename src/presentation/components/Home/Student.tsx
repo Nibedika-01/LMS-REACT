@@ -56,8 +56,7 @@ const StudentManagement: React.FC = () => {
         apiClient.get('/Issues')
       ]);
 
-      console.log('Fetched students:', studentsResponse.data);
-      console.log('Fetched issues:', issuesResponse.data);
+    
 
       const data = studentsResponse.data.map((s: any) => {
         const studentIssues = issuesResponse.data.filter(
@@ -106,10 +105,8 @@ const StudentManagement: React.FC = () => {
   };
 
   const handleAddStudent = async () => {
-    console.log('Adding student:', formData);
     try {
       const response = await apiClient.post('/Students', formData);
-      console.log('Student added successfully:', response.data);
       alert('Student added successfully!');
       handleResetForm();
       setView('list');
@@ -142,9 +139,6 @@ const StudentManagement: React.FC = () => {
       faculty: editFormData.faculty,
       semester: editFormData.semester
     };
-
-    console.log('Updating student:', updateData);
-
     try {
       const response = await apiClient.put(`/Students/${editingStudent.id}`, updateData);
       if (response.status === 200) {
@@ -171,7 +165,6 @@ const StudentManagement: React.FC = () => {
       return;
     }
 
-    console.log('Deleting student with ID:', studentId);
     try {
       await apiClient.delete(`/Students/${studentId}`);
       alert('Student deleted successfully');
