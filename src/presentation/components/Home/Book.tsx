@@ -450,8 +450,15 @@ const BooksManagement: React.FC = () => {
                             <tbody className="divide-y divide-gray-200">
                                 {books.map((book) => (
                                     <tr key={book.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 text-sm text-gray-900">{book.title}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-900">{book.authorId}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div>
+
+                                                    <div className="text-sm font-semibold text-gray-900">{book.title}</div>
+                                                    <div className="text-xs text-gray-500">ID: {book.id}</div>
+                                                </div>
+                                            </div>
+                                        </td>                                        <td className="px-6 py-4 text-sm text-gray-900">{book.authorId}</td>
                                         <td className="px-6 py-4">
                                             <span className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded border border-gray-300">
                                                 {book.genre}

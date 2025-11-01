@@ -1,108 +1,102 @@
-import React, { useState } from 'react';
-import { Search, UserPlus, ArrowLeft, RotateCcw, Mail, Phone } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Search, UserPlus, ArrowLeft, RotateCcw, Mail, Phone, Edit, Trash2, X } from 'lucide-react';
+import apiClient from '../../../infrastructure/api/apiClient';
 
 interface Student {
   id: string;
   name: string;
-  email: string;
-  phone: string;
-  type: 'Student' | 'Faculty';
-  status: 'Active' | 'Inactive' | 'Suspended';
-  joinDate: string;
-  booksIssued: number;
-  initials: string;
+  address: string;
+  contactNo: string;
+  faculty: string;
+  semester: string;
+  initials?: string;
+  booksIssued?: Array<{
+    bookId: number;
+    bookTitle: string;
+    issueDate: string;
+  }>;
+}
+
+interface EditStudentFormData {
+  name: string;
+  contactNo: string;
+  address: string;
+  faculty: string;
+  semester: string;
 }
 
 const StudentManagement: React.FC = () => {
   const [view, setView] = useState<'list' | 'add'>('list');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All Status');
-  const [typeFilter, setTypeFilter] = useState('All Types');
-  // const [currentPage, setCurrentPage] = useState(1);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editFormData, setEditFormData] = useState<EditStudentFormData>({
+    name: '',
+    contactNo: '',
+    address: '',
+    faculty: '',
+    semester: ''
+  });
 
   // Form state
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    streetAddress: '',
-    city: '',
-    district: '',
-    state: '',
-    membershipType: '',
+    name: '',
+    contactNo: '',
+    address: '',
     semester: '',
     faculty: ''
   });
 
-  const [students] = useState<Student[]>([
-    { 
-      id: '1', 
-      name: 'Anish Giri', 
-      email: 'anishgiri2@gmail.com', 
-      phone: '+977-9812345678', 
-      type: 'Student', 
-      status: 'Active', 
-      joinDate: '2025-10-14', 
-      booksIssued: 3,
-      initials: 'AG'
-    },
-    { 
-      id: '2', 
-      name: 'Pooja Sharma', 
-      email: 'poojasharma@gmail.com', 
-      phone: '+977-9847632190', 
-      type: 'Student', 
-      status: 'Active', 
-      joinDate: '2025-10-03', 
-      booksIssued: 2,
-      initials: 'PS'
-    },
-    { 
-      id: '3', 
-      name: 'Samiksha Shakya', 
-      email: 'shakyasamiksha@gmail.com', 
-      phone: '+977-9741085264', 
-      type: 'Student', 
-      status: 'Active', 
-      joinDate: '2025-09-15', 
-      booksIssued: 4,
-      initials: 'SS'
-    },
-    { 
-      id: '4', 
-      name: 'Roshan Bhandari', 
-      email: 'roshan2023@gmail.com', 
-      phone: '+977-9823056417', 
-      type: 'Faculty', 
-      status: 'Inactive', 
-      joinDate: '2025-09-10', 
-      booksIssued: 0,
-      initials: 'RB'
-    },
-    { 
-      id: '5', 
-      name: 'Milan Magar', 
-      email: 'milanmagar23@gmail.com', 
-      phone: '+977-9806124783', 
-      type: 'Student', 
-      status: 'Suspended', 
-      joinDate: '2025-08-05', 
-      booksIssued: 2,
-      initials: 'MM'
-    },
-    { 
-      id: '6', 
-      name: 'Tanvir Alam', 
-      email: 'alamtanvir2@gmail.com', 
-      phone: '+977-9812345678', 
-      type: 'Student', 
-      status: 'Active', 
-      joinDate: '2025-07-20', 
-      booksIssued: 1,
-      initials: 'TA'
+  const fetchStudentsWithBooks = async () => {
+    try {
+      setLoading(true);
+      const [studentsResponse, issuesResponse] = await Promise.all([
+        apiClient.get('/Students'),
+        apiClient.get('/Issues')
+      ]);
+
+      console.log('Fetched students:', studentsResponse.data);
+      console.log('Fetched issues:', issuesResponse.data);
+
+      const data = studentsResponse.data.map((s: any) => {
+        const studentIssues = issuesResponse.data.filter(
+          (issue: any) => issue.studentId === s.id && !issue.returnDate
+        );
+        const booksIssued = studentIssues.map((issue: any) => ({
+          bookId: issue.bookId,
+          bookTitle: issue.bookTitle || 'Unknown Book',
+          issueDate: issue.issueDate
+        }));
+
+        return {
+          id: s.id.toString(),
+          name: s.name,
+          address: s.address,
+          contactNo: s.contactNo,
+          faculty: s.faculty,
+          semester: s.semester,
+          initials: s.name
+            .split(' ')
+            .map((n: string) => n[0])
+            .join('')
+            .toUpperCase(),
+          booksIssued: booksIssued
+        };
+      });
+
+      setStudents(data);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      alert('Failed to fetch students. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    fetchStudentsWithBooks();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -111,50 +105,91 @@ const StudentManagement: React.FC = () => {
     });
   };
 
-  const handleAddStudent = () => {
+  const handleAddStudent = async () => {
     console.log('Adding student:', formData);
-    // Handle student addition logic here
-    setView('list');
+    try {
+      const response = await apiClient.post('/Students', formData);
+      console.log('Student added successfully:', response.data);
+      alert('Student added successfully!');
+      handleResetForm();
+      setView('list');
+      await fetchStudentsWithBooks();
+    } catch (error) {
+      console.error('Error adding student:', error);
+      alert('Failed to add student. Please try again.');
+    }
+  };
+
+  const handleEditClick = (student: Student) => {
+    setEditingStudent(student);
+    setEditFormData({
+      name: student.name,
+      contactNo: student.contactNo,
+      address: student.address,
+      faculty: student.faculty,
+      semester: student.semester
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateStudent = async () => {
+    if (!editingStudent) return;
+
+    const updateData = {
+      name: editFormData.name,
+      contactNo: editFormData.contactNo,
+      address: editFormData.address,
+      faculty: editFormData.faculty,
+      semester: editFormData.semester
+    };
+
+    console.log('Updating student:', updateData);
+
+    try {
+      const response = await apiClient.put(`/Students/${editingStudent.id}`, updateData);
+      if (response.status === 200) {
+        await fetchStudentsWithBooks();
+        setShowEditModal(false);
+        setEditingStudent(null);
+        setEditFormData({
+          name: '',
+          contactNo: '',
+          address: '',
+          faculty: '',
+          semester: ''
+        });
+        alert('Student updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating student:', error);
+      alert('Failed to update student. Please try again.');
+    }
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    if (!window.confirm('Are you sure you want to delete this student?')) {
+      return;
+    }
+
+    console.log('Deleting student with ID:', studentId);
+    try {
+      await apiClient.delete(`/Students/${studentId}`);
+      alert('Student deleted successfully');
+      setStudents(students.filter(student => student.id !== studentId));
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      alert('Failed to delete student. Please try again.');
+    }
   };
 
   const handleResetForm = () => {
     setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      streetAddress: '',
-      city: '',
-      district: '',
-      state: '',
-      membershipType: '',
+      name: '',
+      contactNo: '',
+      address: '',
       semester: '',
       faculty: ''
     });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return 'bg-green-100 text-green-700';
-      case 'Inactive':
-        return 'bg-gray-100 text-gray-700';
-      case 'Suspended':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'Student':
-        return 'bg-blue-100 text-blue-700';
-      case 'Faculty':
-        return 'bg-purple-100 text-purple-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
   };
 
   if (view === 'add') {
@@ -190,47 +225,17 @@ const StudentManagement: React.FC = () => {
             <div className="mb-8">
               <h3 className="text-sm font-semibold text-gray-900 mb-4">Personal Information</h3>
               <div className="grid grid-cols-2 gap-6">
-                {/* First Name */}
+                {/* Full Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name <span className="text-red-500">*</span>
+                    Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    name="firstName"
-                    value={formData.firstName}
+                    name="name"
+                    value={formData.name}
                     onChange={handleInputChange}
-                    placeholder="Enter first name"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* Last Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    placeholder="Enter last name"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* Email Address */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="email@example.com"
+                    placeholder="Enter full name"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -242,110 +247,48 @@ const StudentManagement: React.FC = () => {
                   </label>
                   <input
                     type="tel"
-                    name="phone"
-                    value={formData.phone}
+                    name="contactNo"
+                    value={formData.contactNo}
                     onChange={handleInputChange}
-                    placeholder="+977-123-456-7890"
+                    placeholder="+977-9812345678"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
-              </div>
-            </div>
 
-            {/* Address Information */}
-            <div className="mb-8">
-              <h3 className="text-sm font-semibold text-gray-900 mb-1">Address Information</h3>
-              <p className="text-xs text-gray-500 mb-4">(optional)</p>
-              
-              <div className="space-y-6">
-                {/* Street Address */}
+                {/* Address */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Street Address
+                    Address
                   </label>
                   <input
                     type="text"
-                    name="streetAddress"
-                    value={formData.streetAddress}
+                    name="address"
+                    value={formData.address}
                     onChange={handleInputChange}
                     placeholder="123 Main Street"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
-                {/* City, District, State */}
-                <div className="grid grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleInputChange}
-                      placeholder="City name"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      District
-                    </label>
-                    <input
-                      type="text"
-                      name="district"
-                      value={formData.district}
-                      onChange={handleInputChange}
-                      placeholder="District name"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      State
-                    </label>
-                    <input
-                      type="text"
-                      name="state"
-                      value={formData.state}
-                      onChange={handleInputChange}
-                      placeholder="State name"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Membership Details */}
-            <div className="mb-8">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Membership Details</h3>
-              <div className="grid grid-cols-3 gap-6">
-                {/* Membership Type */}
+                {/* Faculty */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Membership Type <span className="text-red-500">*</span>
+                    Faculty <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    name="membershipType"
-                    value={formData.membershipType}
+                  <input
+                    type="text"
+                    name="faculty"
+                    value={formData.faculty}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                  >
-                    <option value="">Select membership type</option>
-                    <option value="Student">Student</option>
-                    <option value="Faculty">Faculty</option>
-                    <option value="Staff">Staff</option>
-                  </select>
+                    placeholder="e.g., Computer Science"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
 
                 {/* Semester */}
-                <div>
+                <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Semester
+                    Semester <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="semester"
@@ -354,30 +297,15 @@ const StudentManagement: React.FC = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                   >
                     <option value="">Select semester</option>
-                    <option value="1st Semester">1st Semester</option>
-                    <option value="2nd Semester">2nd Semester</option>
-                    <option value="3rd Semester">3rd Semester</option>
-                    <option value="4th Semester">4th Semester</option>
-                    <option value="5th Semester">5th Semester</option>
-                    <option value="6th Semester">6th Semester</option>
-                    <option value="7th Semester">7th Semester</option>
-                    <option value="8th Semester">8th Semester</option>
+                    <option value="1st Semester">1st semester</option>
+                    <option value="2nd Semester">2nd semester</option>
+                    <option value="3rd Semester">3rd semester</option>
+                    <option value="4th Semester">4th semester</option>
+                    <option value="5th Semester">5th semester</option>
+                    <option value="6th Semester">6th semester</option>
+                    <option value="7th Semester">7th semester</option>
+                    <option value="8th Semester">8th semester</option>
                   </select>
-                </div>
-
-                {/* Faculty */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Faculty
-                  </label>
-                  <input
-                    type="text"
-                    name="faculty"
-                    value={formData.faculty}
-                    onChange={handleInputChange}
-                    placeholder="Enter the faculty"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
                 </div>
               </div>
             </div>
@@ -386,7 +314,8 @@ const StudentManagement: React.FC = () => {
             <div className="flex gap-4">
               <button
                 onClick={handleAddStudent}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                disabled={!formData.name || !formData.contactNo || !formData.faculty || !formData.semester}
+                className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 <UserPlus className="w-5 h-5" />
                 Add Member
@@ -422,131 +351,229 @@ const StudentManagement: React.FC = () => {
         </button>
       </div>
 
-      {/* Search and Filter */}
+      {/* Students Table */}
       <div className="p-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Search & Filter Books</h2>
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by title, author, or ISBN"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            >
-              <option>All Status</option>
-              <option>Active</option>
-              <option>Inactive</option>
-              <option>Suspended</option>
-            </select>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            >
-              <option>All Types</option>
-              <option>Student</option>
-              <option>Faculty</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Students Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="bg-blue-600 text-white px-6 py-4">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <UserPlus className="w-5 h-5" />
               Library Members
             </h2>
-            <p className="text-sm text-blue-100">Showing 8 of 8 members</p>
           </div>
-
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Member</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Join Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Faculty</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Semester</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Book Issued</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {students.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center font-semibold text-gray-700">
-                          {student.initials}
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">{student.name}</div>
-                          <div className="text-xs text-gray-500">ID: {student.id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2 text-sm text-gray-900">
-                          <Mail className="w-4 h-4 text-gray-400" />
-                          {student.email}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-900">
-                          <Phone className="w-4 h-4 text-gray-400" />
-                          {student.phone}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 text-xs rounded ${getTypeColor(student.type)}`}>
-                        {student.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 text-xs rounded ${getStatusColor(student.status)}`}>
-                        {student.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{student.joinDate}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-gray-100 text-gray-900 text-sm rounded border border-gray-300">
-                        {student.booksIssued}
-                      </span>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <p className="mt-2 text-gray-600">Loading students...</p>
                     </td>
                   </tr>
-                ))}
+                ) : students.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                      No students found
+                    </td>
+                  </tr>
+                ) : (
+                  students.map((student) => (
+                    <tr key={student.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-semibold text-blue-700">
+                            {student.initials}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">{student.name}</div>
+                            <div className="text-xs text-gray-500">ID: {student.id}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 text-sm text-gray-900">
+                            <Phone className="w-4 h-4 text-gray-400" />
+                            {student.contactNo}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">{student.faculty}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">{student.semester.split(' ')[0]}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {student.booksIssued && student.booksIssued.length > 0 ? (
+                          <div className="space-y-1">
+                            {student.booksIssued.map((book, index) => (
+                              <div key={index} className="text-sm">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  {book.bookTitle}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500">No books issued</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          <button 
+                            className="p-2 hover:bg-gray-100 rounded" 
+                            onClick={() => handleEditClick(student)}
+                          >
+                            <Edit className="w-5 h-5 text-gray-600" />
+                          </button>
+                          <button 
+                            className="p-2 hover:bg-gray-100 rounded" 
+                            onClick={() => handleDeleteStudent(student.id)}
+                          >
+                            <Trash2 className="w-5 h-5 text-gray-600" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
-          <div className="px-6 py-4 border-t border-gray-200 flex justify-center gap-2">
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              &lt;
-            </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg">1</button>
-            <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">2</button>
-            <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">3</button>
-            <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">4</button>
-            <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">5</button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              &gt;
-            </button>
-          </div>
         </div>
       </div>
+
+      {/* Edit Student Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <Edit className="w-6 h-6 text-blue-600" />
+                <h3 className="text-xl font-bold text-gray-900">Edit Student</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingStudent(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Name Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Contact Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contact Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={editFormData.contactNo}
+                  onChange={(e) => setEditFormData({ ...editFormData, contactNo: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.address}
+                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Faculty */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Faculty <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.faculty}
+                  onChange={(e) => setEditFormData({ ...editFormData, faculty: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Semester */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Semester <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={editFormData.semester}
+                  onChange={(e) => setEditFormData({ ...editFormData, semester: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                >
+                  <option value="">Select semester</option>
+                  <option value="1st Semester">1st semester</option>
+                  <option value="2nd Semester">2nd semester</option>
+                  <option value="3rd Semester">3rd semester</option>
+                  <option value="4th Semester">4th semester</option>
+                  <option value="5th Semester">5th semester</option>
+                  <option value="6th Semester">6th semester</option>
+                  <option value="7th Semester">7th semester</option>
+                  <option value="8th Semester">8th semester</option>
+                </select>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleUpdateStudent}
+                  disabled={!editFormData.name.trim() || !editFormData.contactNo || !editFormData.faculty || !editFormData.semester}
+                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  Update Student
+                </button>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingStudent(null);
+                  }}
+                  className="flex-1 px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
+}
 
 export default StudentManagement;
