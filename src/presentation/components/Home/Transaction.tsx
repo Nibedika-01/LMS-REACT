@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Calendar, User } from 'lucide-react';
+import { BookOpen, Calendar } from 'lucide-react';
 import apiClient from '../../../infrastructure/api/apiClient';
 
 interface Issue {

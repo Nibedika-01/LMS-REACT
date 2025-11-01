@@ -163,6 +163,7 @@ const BooksManagement: React.FC = () => {
     const handleAddBook = async () => {
         try {
             const response = await apiClient.post('/Books', formData);
+            console.log('Book added successfully:', response.data);
             alert('Book added successfully!');
             setFormData({
                 title: '',
@@ -195,6 +196,7 @@ const BooksManagement: React.FC = () => {
     const handleAddAuthor = async () => {
         try {
             const response = await apiClient.post('/Authors', { authorName });
+            console.log('Author added successfully:', response.data);
         } catch (error) {
             console.error('Error adding author:', error);
             alert('Failed to add author. Please try again.');

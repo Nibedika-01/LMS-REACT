@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, UserPlus, ArrowLeft, RotateCcw, Mail, Phone, Edit, Trash2, X } from 'lucide-react';
+import {UserPlus, ArrowLeft, RotateCcw, Phone, Edit, Trash2, X } from 'lucide-react';
 import apiClient from '../../../infrastructure/api/apiClient';
 
 interface Student {
@@ -107,6 +107,7 @@ const StudentManagement: React.FC = () => {
   const handleAddStudent = async () => {
     try {
       const response = await apiClient.post('/Students', formData);
+      console.log('Student added successfully:', response.data);
       alert('Student added successfully!');
       handleResetForm();
       setView('list');
