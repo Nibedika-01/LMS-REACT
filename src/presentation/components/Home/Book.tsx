@@ -1,23 +1,50 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../infrastructure/api/apiClient';
-import { Search, Edit, Trash2, BookPlus, ArrowLeft, RotateCcw, UserPlus, X } from 'lucide-react';
+import { Search, Edit, Trash2, BookPlus, ArrowLeft, RotateCcw, UserPlus, X, Users } from 'lucide-react';
 
 interface Book {
     id: string;
     title: string;
     authorId: number;
     genre: string;
-    isAvailable: string;
+    publisher?: string;
+    publicationDate?: string;
+    isAvailable: boolean;
     issued: number;
+}
+
+
+interface EditBookFormData {
+    title: string;
+    authorId: string;
+    genre: string;
+    publisher?: string;
+    isAvailable: boolean;
+}
+
+interface Author {
+    id: string;
+    authorName: string;
 }
 
 const BooksManagement: React.FC = () => {
     const [view, setView] = useState<'list' | 'add'>('list');
     const [searchQuery, setSearchQuery] = useState('');
-    const [authors, setAuthors] = useState([]);
+    const [authors, setAuthors] = useState<Author[]>([]);
     const [books, setBooks] = useState<Book[]>([]);
+    const [authorsList, setAuthorsList] = useState<Author[]>([]);
+    const [showViewAuthorModal, setShowViewAuthorModal] = useState(false);
     const [showAuthorModal, setShowAuthorModal] = useState(false);
     const [authorName, setAuthorName] = useState('');
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingBook, setEditingBook] = useState<Book | null>(null);
+    const [editFormData, setEditFormData] = useState<EditBookFormData>({
+        title: '',
+        authorId: '',
+        genre: '',
+        publisher: '',
+        isAvailable: true
+    });
 
     const [formData, setFormData] = useState({
         title: '',
@@ -28,6 +55,8 @@ const BooksManagement: React.FC = () => {
         price: '',
         description: ''
     });
+
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData({
             ...formData,
@@ -45,7 +74,10 @@ const BooksManagement: React.FC = () => {
                     title: b.title,
                     authorId: b.authorId,
                     genre: b.genre,
+                    publisher: b.publisher,
+                    publicationDate: b.publicationDate,
                     isAvailable: b.isAvailable,
+                    issued: b.issued || 0
                 }));
                 setBooks(data);
             } catch (error) {
@@ -66,25 +98,58 @@ const BooksManagement: React.FC = () => {
         }
     }
 
-    // const handleUpdateBook = async (bookId: string) => {
-    //     console.log('Updating book with ID:', bookId);
-    //     setFormData({
-    //         title: '',
-    //         author: '',
-    //         genre: '',
-    //         publisher: '',
-    //         publicationYear: '',
-    //         price: '',
-    //         description: ''
-    //     })
-    //     try {
-    //         await apiClient.put(`/Books/${bookId}`, formData);
+    const handleEditClick = (book: Book) => {
+        setEditingBook(book);
+        setEditFormData({
+            title: book.title,
+            authorId: book.authorId.toString(),
+            genre: book.genre,
+            publisher: book.publisher,
+            isAvailable: book.isAvailable
+        });
+        setShowEditModal(true);
+    }
 
-    //     } catch (error) {
-    //         console.error('Error updating book:', error);
-    //         alert('Failed to update book. Please try again.');
-    //     }
-    // }
+    const handleUpdateBook = async () => {
+        if (!editingBook) return;
+        const updateData = {
+            title: editFormData.title,
+            authorId: parseInt(editFormData.authorId),
+            genre: editFormData.genre,
+            publisher: editingBook.publisher || "",
+            publicationDate: editingBook.publicationDate || new Date().toISOString(),
+            isAvailable: editFormData.isAvailable
+        };
+        try {
+            const response = await apiClient.put(`/Books/${editingBook.id}`, updateData);
+            if (response.status === 200) {
+                const refreshResponse = await apiClient.get('/Books');
+                const data = refreshResponse.data.map((b: any) => ({
+                    id: b.id.toString(),
+                    title: b.title,
+                    authorId: b.authorId,
+                    genre: b.genre,
+                    publisher: b.publisher,
+                    publicationDate: b.publicationDate,
+                    isAvailable: b.isAvailable,
+                    issued: b.issued || 0
+                }));
+                setBooks(data);
+                setShowEditModal(false);
+                setEditingBook(null);
+                setEditFormData({
+                    title: '',
+                    authorId: '',
+                    genre: '',
+                    isAvailable: true
+                });
+                alert('Book updated successfully!');
+            }
+        } catch (error) {
+            console.error('Error updating book:', error);
+            alert('Failed to update book. Please try again.');
+        }
+    }
     useEffect(() => {
         const fetchAuthors = async () => {
             try {
@@ -102,7 +167,7 @@ const BooksManagement: React.FC = () => {
         try {
             const response = await apiClient.post('/Books', formData);
             console.log('Book added successfully:', response.data);
-
+            alert('Book added successfully!');
             setFormData({
                 title: '',
                 author: '',
@@ -144,6 +209,18 @@ const BooksManagement: React.FC = () => {
         alert(`Author "${authorName}" added successfully!`);
         setAuthorName('');
         setShowAuthorModal(false);
+    }
+
+    const handleViewAuthor = async () => {
+        try {
+            const response = await apiClient.get('/Authors');
+            const data = await response.data;
+            console.log('Authors fetched:', data);
+            setAuthorsList(data);
+            setShowViewAuthorModal(true);
+        } catch (error) {
+            console.error('Error fetching authors:', error);
+        }
     }
 
     if (view === 'add') {
@@ -350,26 +427,6 @@ const BooksManagement: React.FC = () => {
                                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                         </div>
-                        {/* <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                        >
-                            <option>All Status</option>
-                            <option>Available</option>
-                            <option>Not Available</option>
-                        </select>
-                        <select
-                            value={categoryFilter}
-                            onChange={(e) => setCategoryFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                        >
-                            <option>All Categories</option>
-                            <option>Fiction</option>
-                            <option>Computer Science</option>
-                            <option>Fantasy</option>
-                            <option>Mystery</option>
-                        </select> */}
                     </div>
                 </div>
 
@@ -386,6 +443,7 @@ const BooksManagement: React.FC = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Title</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Author</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Genre</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Publisher</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
                                 </tr>
                             </thead>
@@ -399,6 +457,7 @@ const BooksManagement: React.FC = () => {
                                                 {book.genre}
                                             </span>
                                         </td>
+                                        <td className="px-6 py-4 text-sm text-gray-900">{book.publisher || 'N/A'}</td>
                                         <td className="px-6 py-4">
                                             <span
                                                 className={`px-3 py-1 text-xs rounded ${book.isAvailable
@@ -411,7 +470,7 @@ const BooksManagement: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex gap-2">
-                                                <button className="p-2 hover:bg-gray-100 rounded">
+                                                <button className="p-2 hover:bg-gray-100 rounded" onClick={() => handleEditClick(book)}>
                                                     <Edit className="w-5 h-5 text-gray-600" />
                                                 </button>
                                                 <button className="p-2 hover:bg-gray-100 rounded" onClick={() => handleDeleteBook(book.id)}>
@@ -426,6 +485,124 @@ const BooksManagement: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* edit modal */}
+            {showEditModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <Edit className="w-6 h-6 text-blue-600" />
+                                <h3 className="text-xl font-bold text-gray-900">Edit Book</h3>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setShowEditModal(false);
+                                    setEditingBook(null);
+                                }}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {/* Title Input */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Title <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editFormData.title}
+                                    onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            {/* Author Dropdown */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Author <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    value={editFormData.authorId}
+                                    onChange={(e) => setEditFormData({ ...editFormData, authorId: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                    <option value="">Select an author</option>
+                                    {authors.map((author) => (
+                                        <option key={author.id} value={author.id}>
+                                            {author.authorName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Genre Input */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Genre <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editFormData.genre}
+                                    onChange={(e) => setEditFormData({ ...editFormData, genre: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            {/* publisher input */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Publisher <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editFormData.publisher}
+                                    onChange={(e) => setEditFormData({ ...editFormData, publisher: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            {/* Availability Checkbox */}
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="editIsAvailable"
+                                    checked={editFormData.isAvailable}
+                                    onChange={(e) => setEditFormData({ ...editFormData, isAvailable: e.target.checked })}
+                                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                />
+                                <label htmlFor="editIsAvailable" className="text-sm font-medium text-gray-700">
+                                    Book is Available
+                                </label>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    onClick={handleUpdateBook}
+                                    disabled={!editFormData.title.trim() || !editFormData.authorId || !editFormData.genre.trim()}
+                                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                >
+                                    Update Book
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowEditModal(false);
+                                        setEditingBook(null);
+                                    }}
+                                    className="flex-1 px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Add Author Modal */}
             {showAuthorModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -463,6 +640,12 @@ const BooksManagement: React.FC = () => {
 
                             <div className="flex gap-3">
                                 <button
+                                    onClick={handleViewAuthor}
+                                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                >
+                                    View Authors
+                                </button>
+                                <button
                                     onClick={handleAddAuthor}
                                     disabled={!authorName.trim()}
                                     className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
@@ -479,6 +662,62 @@ const BooksManagement: React.FC = () => {
                                     Cancel
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* View Authors Modal */}
+            {showViewAuthorModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <Users className="w-6 h-6 text-green-600" />
+                                <h3 className="text-xl font-bold text-gray-900">All Authors</h3>
+                            </div>
+                            <button
+                                onClick={() => setShowViewAuthorModal(false)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto flex-1">
+                            {authorsList?.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">No authors found</div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {authorsList?.map((author) => (
+                                        <div
+                                            key={author?.id}
+                                            className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                                    <span className="text-green-600 font-semibold text-sm">
+                                                        {author?.authorName?.charAt(0)?.toUpperCase() ?? '?'}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-gray-900">{author?.authorName ?? 'Unknown'}</p>
+                                                    <p className="text-sm text-gray-500">ID: {author?.id ?? '-'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-gray-200">
+                            <button
+                                onClick={() => setShowViewAuthorModal(false)}
+                                className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>
