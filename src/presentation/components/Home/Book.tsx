@@ -36,6 +36,7 @@ const BooksManagement: React.FC = () => {
     const [showViewAuthorModal, setShowViewAuthorModal] = useState(false);
     const [showAuthorModal, setShowAuthorModal] = useState(false);
     const [authorName, setAuthorName] = useState('');
+    const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingBook, setEditingBook] = useState<Book | null>(null);
     const [editFormData, setEditFormData] = useState<EditBookFormData>({
@@ -55,7 +56,6 @@ const BooksManagement: React.FC = () => {
         price: '',
         description: ''
     });
-
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData({
@@ -85,6 +85,25 @@ const BooksManagement: React.FC = () => {
         };
         fetchBooks();
     }, []);
+
+    useEffect(() => {
+        const q = searchQuery.trim().toLowerCase();
+
+        const filtered = books.filter((book) => {
+            const title = book.title?.toLowerCase() ?? '';
+            const author = authors.find(a => a.id === book.authorId.toString())?.authorName.toLowerCase() ?? '';
+            const genre = book.genre?.toLowerCase() ?? '';
+            const pub = book.publisher?.toLowerCase() ?? '';
+
+            return (
+                title.includes(q) ||
+                author.includes(q) ||
+                genre.includes(q) ||
+                pub.includes(q)
+            );
+        })
+        setFilteredBooks(filtered);
+    }, [books, searchQuery, authors]);
 
     const handleDeleteBook = async (bookId: string) => {
         try {
@@ -410,20 +429,20 @@ const BooksManagement: React.FC = () => {
             {/* Search and Filter */}
             <div className="p-8">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Search & Filter Books</h2>
-                    <div className="flex gap-4">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                            <input
+                          <h2 className="text-lg font-semibold text-gray-900 mb-4">Search Books</h2>
+                          <div className="flex gap-4">
+                            <div className="flex-1 relative">
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                              <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search by title, author, or ISBN"
+                                placeholder="Search by title, author, or publisher"
                                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
+                              />
+                            </div>
+                          </div>
                         </div>
-                    </div>
-                </div>
 
                 {/* Books Table */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -442,47 +461,57 @@ const BooksManagement: React.FC = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {books.map((book) => (
-                                    <tr key={book.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div>
 
-                                                    <div className="text-sm font-semibold text-gray-900">{book.title}</div>
-                                                    <div className="text-xs text-gray-500">ID: {book.id}</div>
-                                                </div>
-                                            </div>
-                                        </td>                                        
-                                        <td className="px-6 py-4 text-sm text-gray-900">{book.authorId}</td>
-                                        <td className="px-6 py-4">
-                                            <span className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded border border-gray-300">
-                                                {book.genre}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900">{book.publisher || 'N/A'}</td>
-                                        <td className="px-6 py-4">
-                                            <span
-                                                className={`px-3 py-1 text-xs rounded ${book.isAvailable
-                                                    ? "bg-green-100 text-green-700"
-                                                    : "bg-red-100 text-red-700"
-                                                    }`}
-                                            >
-                                                {book.isAvailable ? "Available" : "Not Available"}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button className="p-2 hover:bg-gray-100 rounded" onClick={() => handleEditClick(book)}>
-                                                    <Edit className="w-5 h-5 text-gray-600" />
-                                                </button>
-                                                <button className="p-2 hover:bg-gray-100 rounded" onClick={() => handleDeleteBook(book.id)}>
-                                                    <Trash2 className="w-5 h-5 text-gray-600" />
-                                                </button>
-                                            </div>
+                            <tbody className="divide-y divide-gray-200">
+                                {filteredBooks.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                            {searchQuery
+                                                ? `No books match "${searchQuery}"`
+                                                : 'No books in the library yet.'}
                                         </td>
                                     </tr>
-                                ))}
+                                ) : (
+                                    filteredBooks.map((book) => (
+                                        <tr key={book.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div>
+
+                                                        <div className="text-sm font-semibold text-gray-900">{book.title}</div>
+                                                        <div className="text-xs text-gray-500">ID: {book.id}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-900">{book.authorId}</td>
+                                            <td className="px-6 py-4">
+                                                <span className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded border border-gray-300">
+                                                    {book.genre}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-900">{book.publisher || 'N/A'}</td>
+                                            <td className="px-6 py-4">
+                                                <span
+                                                    className={`px-3 py-1 text-xs rounded ${book.isAvailable
+                                                        ? "bg-green-100 text-green-700"
+                                                        : "bg-red-100 text-red-700"
+                                                        }`}
+                                                >
+                                                    {book.isAvailable ? "Available" : "Not Available"}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex gap-2">
+                                                    <button className="p-2 hover:bg-gray-100 rounded" onClick={() => handleEditClick(book)}>
+                                                        <Edit className="w-5 h-5 text-gray-600" />
+                                                    </button>
+                                                    <button className="p-2 hover:bg-gray-100 rounded" onClick={() => handleDeleteBook(book.id)}>
+                                                        <Trash2 className="w-5 h-5 text-gray-600" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )))}
                             </tbody>
                         </table>
                     </div>

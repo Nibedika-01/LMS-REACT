@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {UserPlus, ArrowLeft, RotateCcw, Phone, Edit, Trash2, X } from 'lucide-react';
+import { UserPlus, ArrowLeft, RotateCcw, Phone, Edit, Trash2, X, Search } from 'lucide-react';
 import apiClient from '../../../infrastructure/api/apiClient';
 
 interface Student {
@@ -29,7 +29,9 @@ const StudentManagement: React.FC = () => {
   const [view, setView] = useState<'list' | 'add'>('list');
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [editFormData, setEditFormData] = useState<EditStudentFormData>({
     name: '',
@@ -55,8 +57,6 @@ const StudentManagement: React.FC = () => {
         apiClient.get('/Students'),
         apiClient.get('/Issues')
       ]);
-
-    
 
       const data = studentsResponse.data.map((s: any) => {
         const studentIssues = issuesResponse.data.filter(
@@ -96,6 +96,16 @@ const StudentManagement: React.FC = () => {
   useEffect(() => {
     fetchStudentsWithBooks();
   }, []);
+
+  useEffect(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const filtered = students.filter(student =>
+      student.name.toLowerCase().includes(q) ||
+      student.faculty.toLowerCase().includes(q) ||
+      student.contactNo.toLowerCase().includes(q)
+    );
+    setFilteredStudents(filtered);
+  }, [searchQuery, students]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -347,6 +357,22 @@ const StudentManagement: React.FC = () => {
 
       {/* Students Table */}
       <div className="p-8">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Search Students</h2>
+          <div className="flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name, faculty, contact"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="bg-blue-600 text-white px-6 py-4">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -367,21 +393,16 @@ const StudentManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {loading ? (
+                {filteredStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <p className="mt-2 text-gray-600">Loading students...</p>
-                    </td>
-                  </tr>
-                ) : students.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                      No students found
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      {searchQuery
+                        ? `No books match "${searchQuery}"`
+                        : 'No books in the library yet.'}
                     </td>
                   </tr>
                 ) : (
-                  students.map((student) => (
+                  filteredStudents.map((student) => (
                     <tr key={student.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -425,14 +446,14 @@ const StudentManagement: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          <button 
-                            className="p-2 hover:bg-gray-100 rounded" 
+                          <button
+                            className="p-2 hover:bg-gray-100 rounded"
                             onClick={() => handleEditClick(student)}
                           >
                             <Edit className="w-5 h-5 text-gray-600" />
                           </button>
-                          <button 
-                            className="p-2 hover:bg-gray-100 rounded" 
+                          <button
+                            className="p-2 hover:bg-gray-100 rounded"
                             onClick={() => handleDeleteStudent(student.id)}
                           >
                             <Trash2 className="w-5 h-5 text-gray-600" />
