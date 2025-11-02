@@ -24,6 +24,9 @@ interface Book {
 interface Student {
   id: number;
   name: string;
+  createdAt?: string;
+  registeredAt?: string;
+  joinedDate?: string;
 }
 
 interface OverdueBook {
@@ -45,6 +48,7 @@ interface CategoryData {
   name: string;
   value: number;
   color: string;
+  [key: string]: string | number; // Index signature for Recharts compatibility
 }
 
 const ReportsAnalytics: React.FC = () => {
@@ -164,10 +168,11 @@ const ReportsAnalytics: React.FC = () => {
       .map(([name, count], index) => ({
         name,
         value: Math.round((count / total) * 100),
+        count: count,
         color: colors[index % colors.length]
       }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 6); // Top 6 categories
+      .slice(0, 6);
 
     setCategoryData(distribution);
   };
@@ -207,10 +212,45 @@ const ReportsAnalytics: React.FC = () => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentMonth = new Date().getMonth();
     
-    const data = months.slice(0, currentMonth + 1).map((month, index) => ({
-      month,
-      students: Math.floor(students.length * ((index + 1) / (currentMonth + 1)))
-    }));
+    const studentsWithDates = students.filter(s => s.createdAt || s.registeredAt || s.joinedDate);
+    
+    if (studentsWithDates.length === 0) {
+      console.log('Using estimated distribution for membership trends');
+      const data = months.slice(0, currentMonth + 1).map((month, index) => ({
+        month,
+        students: Math.floor(students.length * ((index + 1) / (currentMonth + 1)))
+      }));
+      setMembershipData(data);
+      return;
+    }
+    
+    const currentYear = new Date().getFullYear();
+    const monthlyCount: { [key: string]: number } = {};
+    
+    students.forEach(student => {
+      const createdDate = student.createdAt || student.registeredAt || student.joinedDate;
+      
+      if (createdDate) {
+        const date = new Date(createdDate);
+        
+        const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+        const year = date.getFullYear();
+        
+        const monthsAgo = (currentYear - year) * 12 + (new Date().getMonth() - date.getMonth());
+        if (monthsAgo >= 0 && monthsAgo <= 11) {
+          monthlyCount[monthName] = (monthlyCount[monthName] || 0) + 1;
+        }
+      }
+    });
+    
+    let cumulative = 0;
+    const data = months.map(month => {
+      cumulative += (monthlyCount[month] || 0);
+      return {
+        month,
+        students: cumulative
+      };
+    });
 
     setMembershipData(data);
   };

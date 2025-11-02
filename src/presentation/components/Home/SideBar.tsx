@@ -23,6 +23,7 @@ interface RecentActivity {
     title: string;
     subtitle: string;
     timestamp: string;
+    sortDate: Date;
 }
 
 interface PopularBook {
@@ -62,16 +63,19 @@ const LibraryManagementSystem: React.FC = () => {
             const issuesRes = await apiClient.get('/Issues/total');
             const studentRes = await apiClient.get('/Students/total');
 
-            const [issuesFullRes, booksFullRes] = await Promise.all([
+            const [issuesFullRes, booksFullRes, studentsRes] = await Promise.all([
                 apiClient.get('/Issues'),
                 apiClient.get('/Books'),
+                apiClient.get('/Students'),
             ]);
 
             const issues: any[] = issuesFullRes.data;
             const books: any[] = booksFullRes.data;
+            const students: any[] = studentsRes.data;
 
             const now = new Date();
             const overdueList: any[] = [];
+            
             issues.forEach(issue => {
                 if (issue.returnDate) return;
 
@@ -91,15 +95,18 @@ const LibraryManagementSystem: React.FC = () => {
                 }
             });
             overdueList.sort((a, b) => b.daysOverdue - a.daysOverdue);
+            
             const issueCount: { [bookId: number]: number } = {};
             issues.forEach((issue) => {
                 issueCount[issue.bookId] = (issueCount[issue.bookId] || 0) + 1;
             });
 
+            //issues recent activities
             const popularList = Object.entries(issueCount)
                 .map(([bookId, count]) => {
                     const book = books.find((b) => b.id === parseInt(bookId));
                     return {
+                        id: bookId,
                         title: book?.title || 'Unknown',
                         author: book?.authorId ? `Author ID: ${book.authorId}` : 'Unknown',
                         timesIssued: count,
@@ -107,87 +114,96 @@ const LibraryManagementSystem: React.FC = () => {
                 })
                 .sort((a, b) => b.timesIssued - a.timesIssued)
                 .slice(0, 5);
-            setStats(prev => ({
-                ...prev,
+                
+            setStats({
                 totalBooks: bookRes.data.total,
                 booksIssued: issuesRes.data.total,
                 activeMembers: studentRes.data.total,
-                overdueBooks: overdueList.length
-            }));
+                overdueBooks: overdueList.length,
+                booksAddedThisMonth: 0,
+                membersAddedThisMonth: 0
+            });
 
+            //book recent activities
             const activities: RecentActivity[] = [];
-
             books.forEach(book => {
+                if (!book.createdAt && !book.addedDate) return;
+                
                 const addedDate = new Date(book.createdAt || book.addedDate || '');
                 const diffDays = (now.getTime() - addedDate.getTime()) / (1000 * 3600 * 24);
+                
                 if (!isNaN(diffDays) && diffDays <= 30) {
                     activities.push({
                         id: `book-added-${book.id}`,
                         type: 'book_added',
-                        title: book.title,
-                        subtitle: `Added ${Math.floor(diffDays)} days ago`,
-                        timestamp: addedDate.toLocaleDateString('en-GB'),
+                        title: book.title || 'Unknown Book',
+                        subtitle: `Added ${Math.floor(diffDays)} day${Math.floor(diffDays) !== 1 ? 's' : ''} ago`,
+                        timestamp: addedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        sortDate: addedDate
                     });
                 }
             });
 
-            const studentsRes = await apiClient.get('/Students');
-            studentsRes.data.forEach((student: any) => {
+            //student recent activities
+            students.forEach((student: any) => {
+                if (!student.createdAt && !student.registeredAt) return;
+                
                 const joinedDate = new Date(student.createdAt || student.registeredAt || '');
                 const diffDays = (now.getTime() - joinedDate.getTime()) / (1000 * 3600 * 24);
+                
                 if (!isNaN(diffDays) && diffDays <= 30) {
                     activities.push({
                         id: `member-${student.id}`,
                         type: 'new_member',
-                        title: student.name,
-                        subtitle: `Joined ${Math.floor(diffDays)} days ago`,
-                        timestamp: joinedDate.toLocaleDateString('en-GB'),
+                        title: student.name || 'Unknown Member',
+                        subtitle: `Joined ${Math.floor(diffDays)} day${Math.floor(diffDays) !== 1 ? 's' : ''} ago`,
+                        timestamp: joinedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        sortDate: joinedDate
                     });
                 }
             });
 
+            //issued recent activities
             issues.forEach(issue => {
                 const issuedDate = new Date(issue.issueDate);
                 const diffDays = (now.getTime() - issuedDate.getTime()) / (1000 * 3600 * 24);
+                
                 if (!isNaN(diffDays) && diffDays <= 30) {
                     activities.push({
                         id: `issue-${issue.id}`,
                         type: 'book_issued',
-                        title: `Book ID ${issue.bookId}`,
-                        subtitle: `Issued to Student ${issue.studentId}`,
-                        timestamp: issuedDate.toLocaleDateString('en-GB'),
+                        title: issue.bookTitle || `Book ID ${issue.bookId}`,
+                        subtitle: `Issued to ${issue.studentName || `Student ${issue.studentId}`}`,
+                        timestamp: issuedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        sortDate: issuedDate
                     });
                 }
             });
 
+            //returned recent activities
             issues.forEach(issue => {
                 if (issue.returnDate) {
-                    const returnDt = new Date(issue.returnDate);
-                    const diffDays = (now.getTime() - returnDt.getTime()) / (1000 * 3600 * 24);
+                    const returnDate = new Date(issue.returnDate);
+                    const diffDays = (now.getTime() - returnDate.getTime()) / (1000 * 3600 * 24);
+                    
                     if (!isNaN(diffDays) && diffDays <= 30) {
                         activities.push({
                             id: `returned-${issue.id}`,
                             type: 'book_returned',
-                            title: `Book ID ${issue.bookId}`,
-                            subtitle: `Returned by Student ${issue.studentId}`,
-                            timestamp: returnDt.toLocaleDateString('en-GB'),
+                            title: issue.bookTitle || `Book ID ${issue.bookId}`,
+                            subtitle: `Returned by ${issue.studentName || `Student ${issue.studentId}`}`,
+                            timestamp: returnDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                            sortDate: returnDate
                         });
                     }
                 }
             });
 
-            activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-            setRecentActivity(activities.slice(0, 5));
+            //sort activities by date
+            activities.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
+            setRecentActivity(activities.slice(0, 10));
 
-            setPopularBooks(
-                popularList.map((book, index) => ({
-                    id: (index + 1).toString(),
-                    title: book.title,
-                    author: book.author,
-                    genre: '—',
-                    timesIssued: book.timesIssued,
-                }))
-            );
+            setPopularBooks(popularList);
 
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
@@ -200,7 +216,7 @@ const LibraryManagementSystem: React.FC = () => {
         { id: 'Dashboard', label: 'Dashboard', icon: Home },
         { id: 'Transactions', label: 'Transactions', icon: RefreshCw },
         { id: 'Books', label: 'Books', icon: BookOpen },
-        { id: 'Student', label: 'Student', icon: Users },
+        { id: 'Student', label: 'Students', icon: Users },
         { id: 'Reports', label: 'Reports', icon: BarChart3 },
     ];
 
@@ -235,6 +251,19 @@ const LibraryManagementSystem: React.FC = () => {
         }
     };
 
+    const getActivityColor = (type: RecentActivity['type']) => {
+        switch (type) {
+            case 'book_returned':
+                return 'bg-green-100 text-green-600';
+            case 'new_member':
+                return 'bg-blue-100 text-blue-600';
+            case 'book_issued':
+                return 'bg-purple-100 text-purple-600';
+            case 'book_added':
+                return 'bg-orange-100 text-orange-600';
+        }
+    };
+
     const renderContent = () => {
         if (activeMenu === 'Dashboard') {
             if (loading) {
@@ -253,7 +282,7 @@ const LibraryManagementSystem: React.FC = () => {
                     {/* Header */}
                     <div className="bg-white border-b border-gray-200 px-8 py-6">
                         <h1 className="text-3xl font-bold text-gray-900">Library Dashboard</h1>
-                        <p className="text-gray-500 mt-1">Welcome to the Library management system</p>
+                        <p className="text-gray-500 mt-1">Welcome to the Library Management System</p>
                     </div>
 
                     {/* Dashboard Content */}
@@ -264,43 +293,44 @@ const LibraryManagementSystem: React.FC = () => {
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-sm text-gray-600">Total Books</span>
-                                    <BookOpen className="w-5 h-5 text-gray-400" />
+                                    <BookOpen className="w-5 h-5 text-blue-500" />
                                 </div>
                                 <div className="text-3xl font-bold text-gray-900 mb-1">{stats.totalBooks}</div>
                                 <div className="text-sm text-gray-500">Available in library</div>
-                                <div className="text-xs text-green-600 mt-2">+ {stats.booksAddedThisMonth} this month</div>
                             </div>
 
                             {/* Active Members */}
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-sm text-gray-600">Active Members</span>
-                                    <Users className="w-5 h-5 text-gray-400" />
+                                    <Users className="w-5 h-5 text-green-500" />
                                 </div>
                                 <div className="text-3xl font-bold text-gray-900 mb-1">{stats.activeMembers}</div>
                                 <div className="text-sm text-gray-500">Registered members</div>
-                                <div className="text-xs text-green-600 mt-2">+ {stats.membersAddedThisMonth} this month</div>
                             </div>
 
                             {/* Books Issued */}
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                                 <div className="flex items-center justify-between mb-4">
-                                    <span className="text-sm text-gray-600">Book Issued</span>
-                                    <TrendingUp className="w-5 h-5 text-gray-400" />
+                                    <span className="text-sm text-gray-600">Books Issued</span>
+                                    <TrendingUp className="w-5 h-5 text-purple-500" />
                                 </div>
                                 <div className="text-3xl font-bold text-gray-900 mb-1">{stats.booksIssued}</div>
                                 <div className="text-sm text-gray-500">Currently checked out</div>
-                                <div className="text-xs text-green-600 mt-2">{stats.booksIssued}due</div>
                             </div>
 
                             {/* Overdue Books */}
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-sm text-gray-600">Overdue Books</span>
-                                    <AlertCircle className="w-5 h-5 text-gray-400" />
+                                    <AlertCircle className={`w-5 h-5 ${stats.overdueBooks > 0 ? 'text-red-500' : 'text-gray-400'}`} />
                                 </div>
-                                <div className="text-3xl font-bold text-gray-900 mb-1">{stats.overdueBooks}</div>
-                                <div className="text-sm text-gray-500">Need Attention</div>
+                                <div className={`text-3xl font-bold mb-1 ${stats.overdueBooks > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                    {stats.overdueBooks}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    {stats.overdueBooks > 0 ? 'Need attention' : 'All clear'}
+                                </div>
                             </div>
                         </div>
 
@@ -311,28 +341,34 @@ const LibraryManagementSystem: React.FC = () => {
                                 <div className="bg-blue-600 text-white px-6 py-4 rounded-t-lg">
                                     <h2 className="text-lg font-semibold">Recent Activity</h2>
                                 </div>
-                                <div className="divide-y divide-gray-100">
-                                    {recentActivity.map((activity) => (
-                                        <div key={activity.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex items-start gap-3">
-                                                    <div className="mt-1 p-2 bg-gray-100 rounded-full">
-                                                        {getActivityIcon(activity.type)}
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-semibold text-gray-900 text-sm">
-                                                            {getActivityLabel(activity.type)}
-                                                        </div>
-                                                        <div className="text-sm text-gray-900 mt-1">{activity.title}</div>
-                                                        <div className="text-xs text-gray-500 mt-0.5">{activity.subtitle}</div>
-                                                    </div>
-                                                </div>
-                                                <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
-                                                    {activity.timestamp}
-                                                </span>
-                                            </div>
+                                <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                                    {recentActivity.length === 0 ? (
+                                        <div className="px-6 py-8 text-center text-gray-500">
+                                            No recent activity
                                         </div>
-                                    ))}
+                                    ) : (
+                                        recentActivity.map((activity) => (
+                                            <div key={activity.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className={`mt-1 p-2 rounded-full ${getActivityColor(activity.type)}`}>
+                                                            {getActivityIcon(activity.type)}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-semibold text-gray-900 text-sm">
+                                                                {getActivityLabel(activity.type)}
+                                                            </div>
+                                                            <div className="text-sm text-gray-900 mt-1">{activity.title}</div>
+                                                            <div className="text-xs text-gray-500 mt-0.5">{activity.subtitle}</div>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
+                                                        {activity.timestamp}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </div>
 
@@ -342,21 +378,27 @@ const LibraryManagementSystem: React.FC = () => {
                                     <h2 className="text-lg font-semibold">Popular Books</h2>
                                 </div>
                                 <div className="divide-y divide-gray-100">
-                                    {popularBooks.map((book) => (
-                                        <div key={book.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <div className="font-semibold text-gray-900">{book.title}</div>
-                                                    <div className="text-sm text-gray-500 mt-1">
-                                                        {book.author && `${book.author}`}
+                                    {popularBooks.length === 0 ? (
+                                        <div className="px-6 py-8 text-center text-gray-500">
+                                            No data available
+                                        </div>
+                                    ) : (
+                                        popularBooks.map((book) => (
+                                            <div key={book.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-semibold text-gray-900 truncate">{book.title}</div>
+                                                        <div className="text-sm text-gray-500 mt-1 truncate">
+                                                            {book.author}
+                                                        </div>
+                                                    </div>
+                                                    <div className="ml-4 px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded-full whitespace-nowrap">
+                                                        {book.timesIssued} {book.timesIssued === 1 ? 'time' : 'times'}
                                                     </div>
                                                 </div>
-                                                <div className="ml-4 px-3 py-1 bg-gray-900 text-white text-xs font-medium rounded-full whitespace-nowrap">
-                                                    {book.timesIssued} times
-                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -370,7 +412,7 @@ const LibraryManagementSystem: React.FC = () => {
         } else if (activeMenu === 'Student') {
             return <StudentManagement />
         } else if (activeMenu === 'Transactions') {
-            return < TransactionManagement />
+            return <TransactionManagement />
         } else if (activeMenu === 'Reports') {
             return <ReportsAnalytics />;
         }
@@ -402,10 +444,11 @@ const LibraryManagementSystem: React.FC = () => {
                             <button
                                 key={item.id}
                                 onClick={() => setActiveMenu(item.id)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 mb-2 rounded-lg text-left transition-all ${isActive
-                                    ? 'bg-white text-blue-600 shadow-md'
-                                    : 'text-white hover:bg-blue-700'
-                                    }`}
+                                className={`w-full flex items-center gap-3 px-4 py-3 mb-2 rounded-lg text-left transition-all ${
+                                    isActive
+                                        ? 'bg-white text-blue-600 shadow-md'
+                                        : 'text-white hover:bg-blue-700'
+                                }`}
                             >
                                 <Icon className="w-5 h-5" />
                                 <span className="font-medium">{item.label}</span>
