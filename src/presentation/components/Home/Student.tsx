@@ -28,7 +28,6 @@ interface EditStudentFormData {
 const StudentManagement: React.FC = () => {
   const [view, setView] = useState<'list' | 'add'>('list');
   const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
@@ -41,7 +40,6 @@ const StudentManagement: React.FC = () => {
     semester: ''
   });
 
-  // Form state
   const [formData, setFormData] = useState({
     name: '',
     contactNo: '',
@@ -52,7 +50,6 @@ const StudentManagement: React.FC = () => {
 
   const fetchStudentsWithBooks = async () => {
     try {
-      setLoading(true);
       const [studentsResponse, issuesResponse] = await Promise.all([
         apiClient.get('/Students'),
         apiClient.get('/Issues')
@@ -88,9 +85,7 @@ const StudentManagement: React.FC = () => {
     } catch (error) {
       console.error('Error fetching students:', error);
       alert('Failed to fetch students. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    } 
   };
 
   useEffect(() => {
