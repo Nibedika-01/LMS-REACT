@@ -216,7 +216,7 @@ const ReportsAnalytics: React.FC = () => {
       const dateStr = s.createdAt || s.registeredAt || s.joinedDate;
       if (!dateStr) return false;
       const date = new Date(dateStr);
-      return date.getFullYear() > 1900; // Filter out invalid years like 0001
+      return date.getFullYear() > 1900; 
     });
 
     if (studentsWithDates.length === 0) {
