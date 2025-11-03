@@ -516,6 +516,14 @@ const TransactionManagement: React.FC = () => {
                                 <span style={{ flex: 1, color: '#555' }}>{ticketData.bookTitle}</span>
                             </div>
                             <div style={{ display: 'flex', marginBottom: '15px', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
+                                <span style={{ fontWeight: '600', width: '180px', color: '#333' }}>Student ID:</span>
+                                <span style={{ flex: 1, color: '#555' }}>{ticketData.studentId}</span>
+                            </div>
+                            <div style={{ display: 'flex', marginBottom: '15px', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
+                                <span style={{ fontWeight: '600', width: '180px', color: '#333' }}>Student Name:</span>
+                                <span style={{ flex: 1, color: '#555' }}>{ticketData.studentName}</span>
+                            </div>
+                            <div style={{ display: 'flex', marginBottom: '15px', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
                                 <span style={{ fontWeight: '600', width: '180px', color: '#333' }}>Issue Date:</span>
                                 <span style={{ flex: 1, color: '#555' }}>{ticketData.issueDate}</span>
                             </div>
@@ -588,6 +596,14 @@ const TransactionManagement: React.FC = () => {
                             <div style={{ display: 'flex', marginBottom: '15px', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
                                 <span style={{ fontWeight: '600', width: '180px', color: '#333' }}>Book Title:</span>
                                 <span style={{ flex: 1, color: '#555' }}>{ticketData.bookTitle}</span>
+                            </div>
+                            <div style={{ display: 'flex', marginBottom: '15px', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
+                                <span style={{ fontWeight: '600', width: '180px', color: '#333' }}>Student ID:</span>
+                                <span style={{ flex: 1, color: '#555' }}>{ticketData.studentId}</span>
+                            </div>
+                            <div style={{ display: 'flex', marginBottom: '15px', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
+                                <span style={{ fontWeight: '600', width: '180px', color: '#333' }}>Student Name:</span>
+                                <span style={{ flex: 1, color: '#555' }}>{ticketData.studentName}</span>
                             </div>
                             <div style={{ display: 'flex', marginBottom: '15px', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
                                 <span style={{ fontWeight: '600', width: '180px', color: '#333' }}>Issue Date:</span>
