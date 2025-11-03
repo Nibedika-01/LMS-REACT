@@ -104,11 +104,11 @@ const ReportsAnalytics: React.FC = () => {
       if (!issue.returnDate) {
         const issueDate = new Date(issue.issueDate);
         const dueDate = new Date(issueDate);
-        dueDate.setDate(dueDate.getDate() + 30); 
+        dueDate.setDate(dueDate.getDate() + 30);
 
         if (now > dueDate) {
           const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-          const fine = daysOverdue * 10; 
+          const fine = daysOverdue * 10;
           overdue.push({
             id: issue.id,
             title: issue.bookTitle || 'Unknown Book',
@@ -121,12 +121,12 @@ const ReportsAnalytics: React.FC = () => {
     });
 
     overdue.sort((a, b) => b.daysOverdue - a.daysOverdue);
-    setOverdueBooks(overdue.slice(0, 5)); 
+    setOverdueBooks(overdue.slice(0, 5));
   };
 
   const calculatePopularBooks = (issues: Issue[], books: Book[]) => {
     const bookIssueCount: { [key: number]: number } = {};
-    
+
     issues.forEach(issue => {
       bookIssueCount[issue.bookId] = (bookIssueCount[issue.bookId] || 0) + 1;
     });
@@ -146,7 +146,7 @@ const ReportsAnalytics: React.FC = () => {
       .map((book, index) => ({
         rank: index + 1,
         title: book.title,
-        author: `Author ID: ${book.authorId}`, 
+        author: `Author ID: ${book.authorId}`,
         issues: book.issues
       }));
 
@@ -155,7 +155,7 @@ const ReportsAnalytics: React.FC = () => {
 
   const calculateCategoryDistribution = (books: Book[]) => {
     const genreCount: { [key: string]: number } = {};
-    
+
     books.forEach(book => {
       const genre = book.genre || 'Other';
       genreCount[genre] = (genreCount[genre] || 0) + 1;
@@ -163,7 +163,7 @@ const ReportsAnalytics: React.FC = () => {
 
     const total = books.length;
     const colors = ['#9333ea', '#4ade80', '#facc15', '#fb923c', '#06b6d4', '#22d3ee', '#f43f5e', '#8b5cf6'];
-    
+
     const distribution: CategoryData[] = Object.entries(genreCount)
       .map(([name, count], index) => ({
         name,
@@ -179,16 +179,16 @@ const ReportsAnalytics: React.FC = () => {
 
   const generateCheckoutTrends = (issues: Issue[]) => {
     const monthlyData: { [key: string]: { checkouts: number; returns: number } } = {};
-    
+
     issues.forEach(issue => {
       const issueMonth = new Date(issue.issueDate).toLocaleDateString('en-US', { month: 'short' });
-      
+
       if (!monthlyData[issueMonth]) {
         monthlyData[issueMonth] = { checkouts: 0, returns: 0 };
       }
-      
+
       monthlyData[issueMonth].checkouts++;
-      
+
       if (issue.returnDate) {
         const returnMonth = new Date(issue.returnDate).toLocaleDateString('en-US', { month: 'short' });
         if (!monthlyData[returnMonth]) {
@@ -211,48 +211,52 @@ const ReportsAnalytics: React.FC = () => {
   const generateMembershipTrends = (students: Student[]) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentMonth = new Date().getMonth();
-    
-    const studentsWithDates = students.filter(s => s.createdAt || s.registeredAt || s.joinedDate);
-    
+
+    const studentsWithDates = students.filter(s => {
+      const dateStr = s.createdAt || s.registeredAt || s.joinedDate;
+      if (!dateStr) return false;
+      const date = new Date(dateStr);
+      return date.getFullYear() > 1900; // Filter out invalid years like 0001
+    });
+
     if (studentsWithDates.length === 0) {
       console.log('Using estimated distribution for membership trends');
-      const data = months.slice(0, currentMonth + 1).map((month, index) => ({
-        month,
-        students: Math.floor(students.length * ((index + 1) / (currentMonth + 1)))
-      }));
+      const data = months.map((month) => {
+        const monthIndex = months.indexOf(month);
+        if (monthIndex <= currentMonth) {
+          return {
+            month,
+            students: Math.floor(students.length * ((monthIndex + 1) / (currentMonth + 1)))
+          };
+        }
+        return { month, students: 0 };
+      });
       setMembershipData(data);
       return;
     }
-    
-    const currentYear = new Date().getFullYear();
+
     const monthlyCount: { [key: string]: number } = {};
-    
-    students.forEach(student => {
+
+    studentsWithDates.forEach(student => {
       const createdDate = student.createdAt || student.registeredAt || student.joinedDate;
-      
+
       if (createdDate) {
         const date = new Date(createdDate);
-        
         const monthName = date.toLocaleDateString('en-US', { month: 'short' });
-        const year = date.getFullYear();
-        
-        const monthsAgo = (currentYear - year) * 12 + (new Date().getMonth() - date.getMonth());
-        if (monthsAgo >= 0 && monthsAgo <= 11) {
-          monthlyCount[monthName] = (monthlyCount[monthName] || 0) + 1;
-        }
+        monthlyCount[monthName] = (monthlyCount[monthName] || 0) + 1;
       }
     });
-    
+
     let cumulative = 0;
-    const data = months.map(month => {
+    const data = months.map((month, index) => {
       cumulative += (monthlyCount[month] || 0);
       return {
         month,
-        students: cumulative
+        students: index <= currentMonth ? cumulative : 0
       };
     });
 
-    setMembershipData(data);
+    setMembershipData(data.filter((_, index) => index <= currentMonth));
   };
 
   const CustomBarTooltip = ({ active, payload }: any) => {
@@ -411,10 +415,10 @@ const ReportsAnalytics: React.FC = () => {
               <YAxis stroke="#6b7280" />
               <Tooltip content={<CustomLineTooltip />} />
               <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="students" 
-                stroke="#a855f7" 
+              <Line
+                type="monotone"
+                dataKey="students"
+                stroke="#a855f7"
                 strokeWidth={2}
                 name="Students"
                 dot={{ fill: '#a855f7', r: 5 }}
