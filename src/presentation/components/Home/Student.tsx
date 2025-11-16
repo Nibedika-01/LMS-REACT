@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { UserPlus, ArrowLeft, RotateCcw, Phone, Edit, Trash2, X, Search } from 'lucide-react';
+import { UserPlus, ArrowLeft, RotateCcw, Phone, Edit, Trash2, X, Search, Mail } from 'lucide-react';
 import apiClient from '../../../infrastructure/api/apiClient';
 
 interface Student {
   id: string;
   name: string;
   address: string;
+  email: string;
   contactNo: string;
   faculty: string;
   semester: string;
@@ -20,6 +21,7 @@ interface Student {
 interface EditStudentFormData {
   name: string;
   contactNo: string;
+  email: string;
   address: string;
   faculty: string;
   semester: string;
@@ -34,6 +36,7 @@ const StudentManagement: React.FC = () => {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [editFormData, setEditFormData] = useState<EditStudentFormData>({
     name: '',
+    email: '',
     contactNo: '',
     address: '',
     faculty: '',
@@ -45,7 +48,8 @@ const StudentManagement: React.FC = () => {
     contactNo: '',
     address: '',
     semester: '',
-    faculty: ''
+    faculty: '',
+    email: ''
   });
 
   const fetchStudentsWithBooks = async () => {
@@ -68,6 +72,7 @@ const StudentManagement: React.FC = () => {
         return {
           id: s.id.toString(),
           name: s.name,
+          email: s.email,
           address: s.address,
           contactNo: s.contactNo,
           faculty: s.faculty,
@@ -85,7 +90,7 @@ const StudentManagement: React.FC = () => {
     } catch (error) {
       console.error('Error fetching students:', error);
       alert('Failed to fetch students. Please try again.');
-    } 
+    }
   };
 
   useEffect(() => {
@@ -127,6 +132,7 @@ const StudentManagement: React.FC = () => {
     setEditingStudent(student);
     setEditFormData({
       name: student.name,
+      email: student.email,
       contactNo: student.contactNo,
       address: student.address,
       faculty: student.faculty,
@@ -141,6 +147,7 @@ const StudentManagement: React.FC = () => {
     const updateData = {
       name: editFormData.name,
       contactNo: editFormData.contactNo,
+      email: editFormData.email,
       address: editFormData.address,
       faculty: editFormData.faculty,
       semester: editFormData.semester
@@ -154,6 +161,7 @@ const StudentManagement: React.FC = () => {
         setEditFormData({
           name: '',
           contactNo: '',
+          email: '',
           address: '',
           faculty: '',
           semester: ''
@@ -187,7 +195,8 @@ const StudentManagement: React.FC = () => {
       contactNo: '',
       address: '',
       semester: '',
-      faculty: ''
+      faculty: '',
+      email: ''
     });
   };
 
@@ -235,6 +244,21 @@ const StudentManagement: React.FC = () => {
                     value={formData.name}
                     onChange={handleInputChange}
                     placeholder="Enter full name"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* email */}
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-2'>
+                    Email Address<span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email || ''}
+                    onChange={handleInputChange}
+                    placeholder="Email"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -313,7 +337,7 @@ const StudentManagement: React.FC = () => {
             <div className="flex gap-4">
               <button
                 onClick={handleAddStudent}
-                disabled={!formData.name || !formData.contactNo || !formData.faculty || !formData.semester}
+                disabled={!formData.name || !formData.contactNo || !formData.faculty || !formData.semester || !formData.email}
                 className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 <UserPlus className="w-5 h-5" />
@@ -415,6 +439,10 @@ const StudentManagement: React.FC = () => {
                           <div className="flex items-center gap-2 text-sm text-gray-900">
                             <Phone className="w-4 h-4 text-gray-400" />
                             {student.contactNo}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-900">
+                            <Mail className="w-4 h-4 text-gray-400" />
+                            {student.email}
                           </div>
                         </div>
                       </td>
